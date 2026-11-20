@@ -1,0 +1,1623 @@
+# Bluetooth Fleet Monitor
+## Complete Technical Specification & Claude Code Development Prompt
+
+**Project name:** Bluetooth Fleet Monitor  
+**Product type:** Windows 11 command center + Android mobile diagnostic application  
+**Primary purpose:** Identify unreliable Bluetooth devices, intermittent connections, signal instability, radio interference and recurring device failures across a fleet of 170+ devices.
+
+**Development location:** `C:\Projects1\Bluetooth Analizer Best`
+
+**Deployment:** Local network only. No cloud dependency.
+
+---
+
+# PART 1 — PRODUCT REQUIREMENTS
+
+## 1. Project objective
+
+Build a professional Bluetooth monitoring and diagnostic system consisting of two independent applications:
+
+1. Windows 11 application — central command center, server, database and diagnostic dashboard.
+2. Android application — portable Bluetooth scanner, signal analyzer and mobile inspection instrument.
+
+The applications communicate over the local network.
+
+Windows is the authoritative database. Android performs independent Bluetooth scans and uploads measurements to Windows.
+
+The system must be capable of discovering, identifying, monitoring and analyzing at least 170 Bluetooth devices, with room to expand to 500+ devices.
+
+The system must be useful for troubleshooting:
+- Lovense toys.
+- Bluetooth lighting controllers.
+- Bluetooth keyboards and mice.
+- Logitech Bluetooth devices.
+- Other BLE peripherals.
+- Wireless USB receivers, where operating-system-level monitoring is possible.
+
+**Important distinction:** Bluetooth devices, BLE devices and proprietary 2.4 GHz USB receivers must be classified separately. A BLE scanner cannot directly detect a proprietary Logitech USB receiver's radio traffic.
+
+## 2. Core design principles
+
+- Completely local operation.
+- No advertisements.
+- No paid features.
+- No subscription.
+- No telemetry.
+- No external cloud services.
+- No mandatory internet connection.
+- Persistent device history.
+- Automatic synchronization.
+- Offline Android data collection.
+- Reliable error handling.
+- No fabricated connection states.
+- No destructive Bluetooth operations.
+- Explicit user authorization before active connection tests.
+
+All measurements must include their source, timestamp and reliability information.
+
+---
+
+# PART 2 — WINDOWS APPLICATION
+
+## 3. Windows technology stack
+
+| Component | Technology |
+|---|---|
+| Language | C# |
+| Framework | .NET 10 LTS |
+| Desktop UI | WPF |
+| UI pattern | MVVM |
+| Database | SQLite |
+| ORM | Entity Framework Core |
+| Local server | ASP.NET Core |
+| API format | REST / JSON |
+| Bluetooth | Windows Bluetooth LE APIs |
+| USB monitoring | Windows device notifications / PnP |
+| Charts | LiveCharts2 or equivalent |
+| Logging | Serilog |
+| Configuration | JSON |
+| Installer | Portable deployment + optional installer |
+
+Use Windows BLE advertisement APIs, particularly `BluetoothLEAdvertisementWatcher`, for passive BLE monitoring.
+
+Implement Windows Bluetooth functionality behind an abstraction so that additional scanning backends can be introduced later.
+
+Do not assume that every Windows Bluetooth controller supports the same scanning capabilities.
+
+## 4. Windows application layout
+
+Create a professional dark technical interface.
+
+Design inspiration:
+- Professional network monitoring tools.
+- Hardware diagnostic software.
+- Enterprise infrastructure dashboards.
+- Modern Windows desktop applications.
+
+Avoid oversized cards, excessive animations and decorative elements.
+
+The interface must prioritize information density, readability and fast troubleshooting.
+
+### Main navigation
+
+1. Dashboard
+2. Live Monitor
+3. Device Inventory
+4. Fault Detector
+5. Device History
+6. Signal Analysis
+7. Signal Survey
+8. Bluetooth Scanner
+9. Connection Tests
+10. USB Monitor
+11. Mobile Devices
+12. Event Log
+13. Reports
+14. Settings
+
+## 5. Dashboard
+
+The dashboard is the first screen displayed when the application starts.
+
+Display:
+
+- Total registered devices.
+- Currently detected devices.
+- Devices missing from recent scans.
+- Devices with unstable signals.
+- Devices requiring investigation.
+- Number of connected mobile scanners.
+- Windows Bluetooth scanner status.
+- Last database update.
+- Last successful Android synchronization.
+- Active inspection sessions.
+
+Include a live event feed.
+
+Example:
+
+| Time | Device | Event |
+|---|---|---|
+| 09:12:03 | Lush 03 | Missing from scan |
+| 09:12:09 | Lush 03 | Device detected again |
+| 09:14:21 | Keyboard 02 | USB receiver removed |
+| 09:16:42 | Lush 07 | Signal instability detected |
+
+These are illustrative events, not actual device measurements.
+
+Include configurable notifications for:
+- Repeated device disappearance.
+- Signal degradation.
+- Scanner disconnection.
+- Synchronization failure.
+- Database errors.
+- Active test failures.
+
+## 6. Device inventory
+
+Create a searchable, sortable device inventory.
+
+Every device should have:
+
+- Internal database ID.
+- Custom display name.
+- Device category.
+- Manufacturer.
+- Advertised device name.
+- Bluetooth address, when available.
+- Address type, when available.
+- Manufacturer data.
+- Advertised service UUIDs.
+- First detected timestamp.
+- Last detected timestamp.
+- Last known RSSI.
+- Average RSSI.
+- Minimum and maximum RSSI.
+- Number of observations.
+- Number of disappearance events.
+- Number of recovery events.
+- Assigned room.
+- Assigned workstation.
+- Device notes.
+- Current diagnostic status.
+
+### Device identification
+
+Never rely exclusively on Bluetooth MAC addresses.
+
+Some BLE devices use resolvable or non-resolvable private addresses.
+
+Implement a device identity system using:
+
+1. Stable hardware identifiers, when available.
+2. Manufacturer-specific advertisement data.
+3. Service UUIDs.
+4. Device name.
+5. User-confirmed identity.
+6. Previously observed address associations.
+
+Do not automatically merge two devices simply because they advertise the same name.
+
+Support manual device merging and splitting with a full audit trail.
+
+Allow users to assign custom names such as:
+
+- Lush - Studio 01
+- Lush - Studio 02
+- Lush - Studio 03
+- LED Controller - Room 01
+- Keyboard - Workstation 01
+- Mouse - Workstation 01
+
+Support CSV import and export.
+
+## 7. Live Bluetooth monitor
+
+Provide a real-time table with the following columns:
+
+| Column | Description |
+|---|---|
+| Device | Custom device name |
+| Type | BLE / Bluetooth / USB receiver |
+| RSSI | Latest signal strength |
+| Signal trend | Improving / Stable / Degrading |
+| Last seen | Time since last observation |
+| Source | Windows / Android |
+| Room | Assigned inspection location |
+| Status | Detected / Missing / Uncertain |
+| Health | Calculated diagnostic score |
+
+Features:
+
+- Live search.
+- Manufacturer filter.
+- Category filter.
+- Room filter.
+- Signal-strength filter.
+- Missing-device filter.
+- Sort by RSSI.
+- Sort by last seen.
+- Sort by instability.
+- Pause and resume scanning.
+- Export current results.
+
+Do not treat absence from a scan as proof of disconnection.
+
+Use configurable observation windows and scanner coverage information.
+
+## 8. Fault Detection Engine
+
+This is the central feature of the entire application.
+
+Create an independent diagnostic engine that evaluates each device using historical measurements.
+
+### Detection categories
+
+**A. Presence instability**
+
+Detect:
+- Repeated disappearance.
+- Repeated recovery.
+- Unexpected gaps between advertisements.
+- Increasing disappearance frequency.
+- Devices that remain absent longer than configured thresholds.
+
+**B. Signal instability**
+
+Detect:
+- Sudden RSSI degradation.
+- Large RSSI fluctuations.
+- Unstable signal over time.
+- Repeated weak signal observations.
+- Signal degradation associated with a particular inspection location.
+
+**C. Environmental problems**
+
+Detect:
+- Multiple devices disappearing simultaneously.
+- Multiple devices experiencing signal degradation together.
+- Problems concentrated in one room.
+- Problems associated with one scanner.
+- Possible interference patterns.
+
+**D. Hardware-related problems**
+
+Detect:
+- Repeated device-specific failures.
+- Consistently poor signal relative to the same device's historical baseline.
+- Failure patterns that persist across multiple inspection sessions.
+- Repeated USB receiver removal or re-enumeration events.
+
+### Device health score
+
+Implement a transparent, configurable 0–100 diagnostic score.
+
+Initial proposed weighting:
+
+| Metric | Weight |
+|---|---:|
+| Presence stability | 35% |
+| Signal stability | 25% |
+| Recovery frequency | 15% |
+| RSSI trend | 15% |
+| Confirmed connection-test results | 10% |
+
+Score interpretation:
+
+- 90–100: Healthy.
+- 75–89: Good.
+- 60–74: Monitor.
+- 40–59: Unstable.
+- 0–39: Critical.
+
+These are initial engineering thresholds, not validated hardware failure probabilities.
+
+Requirements:
+
+- Allow weights to be adjusted.
+- Allow thresholds to be adjusted.
+- Show exactly why a score changed.
+- Display confidence separately from health.
+- Require sufficient observations before issuing a strong diagnosis.
+- Do not penalize devices that are outside scanner coverage.
+- Distinguish scanner failures from device failures.
+- Exclude unsupported measurements rather than treating them as failures.
+
+### Fault ranking
+
+Create a dedicated Worst Offenders screen.
+
+Sort devices by:
+1. Confirmed connection-test failure rate.
+2. Repeated presence interruptions.
+3. Signal instability.
+4. Severity.
+5. Confidence in diagnosis.
+
+Allow filtering by:
+- Device category.
+- Room.
+- Workstation.
+- Date range.
+- Scanner.
+- Failure type.
+
+Clicking a device opens its complete diagnostic history.
+
+## 9. Device history
+
+Every device needs a historical timeline.
+
+Display:
+
+- RSSI history.
+- Last-seen intervals.
+- Disappearance events.
+- Recovery events.
+- Scanner source.
+- Inspection locations.
+- Connection-test results.
+- Diagnostic score changes.
+
+Provide chart periods:
+
+- Last 15 minutes.
+- Last hour.
+- Last 6 hours.
+- Last 24 hours.
+- Last 7 days.
+- Last 30 days.
+- Custom date range.
+
+Allow comparison of two or more devices.
+
+Allow comparison of multiple scanners observing the same device.
+
+## 10. Signal analysis
+
+Implement:
+
+- RSSI line charts.
+- Moving averages.
+- Signal volatility.
+- Signal distribution.
+- Minimum and maximum values.
+- Time between advertisements.
+- Missing observation intervals.
+- Signal recovery time.
+
+Provide an optional configurable RSSI interpretation:
+
+- Excellent.
+- Good.
+- Fair.
+- Weak.
+- Very weak.
+
+Do not use fixed RSSI thresholds as universal distance measurements. RSSI varies with antenna design, orientation, body obstruction, device transmission power and environmental conditions.
+
+## 11. Connection testing
+
+Implement active testing, but make it explicitly controlled.
+
+Users must select an individual device before starting an active test.
+
+Never automatically attempt connections to all 170 devices.
+
+### Test configuration
+
+- Number of attempts.
+- Connection timeout.
+- Delay between attempts.
+- Maximum retries.
+- Cooldown period.
+- GATT service discovery option.
+- Test duration.
+- Test notes.
+
+Record:
+
+- Attempt timestamp.
+- Connection result.
+- Connection duration.
+- Timeout.
+- Platform error.
+- GATT status.
+- Service discovery result, if requested.
+- Disconnect event.
+- Recovery result.
+
+Display:
+
+- Successful attempts.
+- Failed attempts.
+- Timeout percentage.
+- Average connection time.
+- Maximum connection time.
+- Minimum connection time.
+- Error distribution.
+
+### Critical safety requirement
+
+Active GATT testing must be restricted to selected devices.
+
+Before starting, display a warning that an additional connection attempt may interfere with an application already controlling the device.
+
+For Lovense devices:
+
+- Do not interrupt an active live session.
+- Do not disconnect an existing connection.
+- Do not send proprietary commands.
+- Do not attempt to take control of a toy.
+- Do not automatically pair or unpair devices.
+- Do not assume an advertisement scan verifies Lovense Remote connectivity.
+
+If a device is already controlled by another application, the diagnostic tool should default to passive monitoring.
+
+## 12. Windows Bluetooth adapter management
+
+Version 1:
+- Support one Windows Bluetooth adapter.
+- Detect adapter availability.
+- Display adapter manufacturer and model where available.
+- Display Bluetooth state.
+- Monitor scanning status.
+- Detect scanner interruptions.
+- Record scanner errors.
+
+Future expansion:
+- Multiple adapters.
+- Adapter-specific scanning where the Windows API and hardware support it.
+- Independent scanner identities.
+- Cross-adapter observation comparison.
+- Scanner health reports.
+
+Do not claim multiple physical adapters are independently controllable until verified with a real hardware proof of concept.
+
+## 13. USB monitor
+
+Create a separate USB monitoring subsystem.
+
+Monitor:
+- USB device arrival.
+- USB device removal.
+- Device re-enumeration.
+- Device instance ID.
+- Hardware ID.
+- Vendor ID.
+- Product ID.
+- Device description.
+- Timestamp.
+
+Prioritize:
+- Logitech receivers.
+- Bluetooth USB adapters.
+- USB hubs.
+- External Bluetooth controllers.
+
+Important: Windows USB monitoring can detect receiver removal and enumeration events, but cannot automatically determine whether a proprietary Logitech keyboard or mouse has lost its wireless connection. Do not report a USB removal as a confirmed keyboard disconnection.
+
+---
+
+# PART 3 — ANDROID APPLICATION
+
+## 14. Android technology stack
+
+| Component | Technology |
+|---|---|
+| Language | Kotlin |
+| UI | Jetpack Compose |
+| Architecture | MVVM |
+| Bluetooth | Android BLE APIs |
+| Scanner | BluetoothLeScanner |
+| Local database | Room |
+| Background execution | Foreground service |
+| Synchronization | WorkManager |
+| Networking | Retrofit / OkHttp |
+| Serialization | Kotlin Serialization |
+| Dependency injection | Hilt |
+
+Target a currently supported Android SDK and use appropriate runtime permission handling.
+
+Support Android 10 and newer where practical, with Android 12+ Nearby Devices permissions implemented correctly.
+
+## 15. Android application screens
+
+1. Scanner
+2. Nearby Devices
+3. Signal Radar
+4. Device Inspector
+5. Signal History
+6. Inspection Sessions
+7. Sync Status
+8. Settings
+
+Use a dark technical interface consistent with the Windows application.
+
+## 16. Scanning modes
+
+Provide three scanning modes.
+
+### Mode A — Continuous foreground scanning
+
+- User explicitly starts scanning.
+- Persistent foreground-service notification.
+- Live BLE advertisement collection.
+- RSSI measurement.
+- Timestamped observations.
+- Continuous synchronization with Windows.
+- Local buffering.
+- Scanning status always visible.
+
+Allow the user to stop scanning at any time.
+
+### Mode B — Background scanning
+
+Implement Android-compatible background scanning.
+
+Use appropriate mechanisms such as:
+
+- Filtered BLE scanning.
+- PendingIntent-based scanning where applicable.
+- Background work for synchronization.
+- Foreground service when continuous monitoring is required and permitted.
+
+Do not promise uninterrupted scanning when Android suspends or terminates the application.
+
+Display:
+- Background scanning enabled.
+- Last successful scan.
+- Last successful observation.
+- Service status.
+- Permission status.
+- Battery optimization warning.
+- Last synchronization.
+
+If scanning stops, record the interruption.
+
+Never fabricate observations for periods when the phone was not scanning.
+
+### Mode C — Mobile inspection
+
+Designed for walking around the studio.
+
+Features:
+- Start inspection.
+- Select inspection location.
+- View detected devices.
+- View signal strength.
+- Compare device RSSI with previous readings.
+- Identify missing devices.
+- Highlight unstable devices.
+- Record inspection notes.
+- Save inspection session.
+- Synchronize results with Windows.
+
+Locations should initially be manually selected:
+
+- Office.
+- Studio 01.
+- Studio 02.
+- Studio 03.
+- Server area.
+- Storage room.
+- Custom location.
+
+GPS is not required.
+
+## 17. Android Bluetooth scanner
+
+Collect the following fields whenever available:
+
+- Timestamp.
+- RSSI.
+- Device name.
+- Bluetooth address.
+- Address type, if available.
+- Manufacturer data.
+- Service UUIDs.
+- Advertising flags.
+- Transmitted power, if advertised.
+- Advertising payload.
+- Scan source.
+- Scan session ID.
+
+Requirements:
+
+- Handle missing device names.
+- Handle randomized addresses.
+- Avoid duplicate device records.
+- Handle Bluetooth being disabled.
+- Handle permission revocation.
+- Handle scan failures.
+- Handle phone restarts.
+- Handle application process termination.
+- Avoid excessive battery consumption.
+- Provide configurable scan modes.
+
+Do not assume that all BLE devices advertise continuously.
+
+## 18. Android signal radar
+
+Create a visual signal display.
+
+Show:
+- Nearby devices.
+- Signal strength.
+- Signal changes.
+- Last-seen time.
+- Selected device.
+- Devices with weak signals.
+- Devices with unstable signals.
+
+Provide a simple radar visualization, but do not represent RSSI as an accurate physical distance measurement.
+
+## 19. Android offline synchronization
+
+The phone must never lose collected measurements because the Windows server is unavailable.
+
+Implement:
+- Local Room storage.
+- Persistent upload queue.
+- Unique observation IDs.
+- Batch uploads.
+- Retry handling.
+- Server acknowledgements.
+- Duplicate prevention.
+- Upload progress.
+- Failed upload queue.
+- Manual synchronization.
+
+Delete local records only after successful server acknowledgement and only according to configurable retention settings.
+
+---
+
+# PART 4 — WINDOWS / ANDROID COMMUNICATION
+
+## 20. Local network architecture
+
+Windows runs the local server.
+
+Example:
+
+Windows server:
+`http://192.168.1.100:8765`
+
+Android connects to the Windows server over the local Wi-Fi network.
+
+The actual address and port must be configurable.
+
+### Pairing
+
+Windows displays:
+- Server IP.
+- Server port.
+- QR pairing code.
+- Pairing token.
+- Connection status.
+
+Android scans the QR code.
+
+Pairing establishes:
+- Server address.
+- Device identity.
+- Authentication token.
+- Scanner identity.
+
+Requirements:
+- Generate a unique token.
+- Never use a hardcoded shared password.
+- Support token revocation.
+- Support multiple Android scanners.
+- Support manual pairing.
+- Do not expose the API to the public internet.
+- Bind to the selected LAN interface.
+- Validate incoming requests.
+- Provide an option for HTTPS with locally managed certificates.
+
+Do not assume that an unknown Wi-Fi client is authorized.
+
+## 21. API design
+
+Implement versioned endpoints.
+
+Suggested endpoints:
+
+`GET /api/v1/health`
+
+`POST /api/v1/pair`
+
+`POST /api/v1/scanners/register`
+
+`POST /api/v1/observations/batch`
+
+`POST /api/v1/inspection-sessions`
+
+`GET /api/v1/devices`
+
+`GET /api/v1/devices/{id}`
+
+`GET /api/v1/devices/{id}/history`
+
+`GET /api/v1/devices/{id}/diagnostics`
+
+`POST /api/v1/devices/{id}/tests`
+
+`GET /api/v1/sync/status`
+
+`POST /api/v1/events`
+
+Use DTOs and request validation.
+
+Implement:
+- API versioning.
+- Authentication.
+- Rate limiting.
+- Payload validation.
+- Idempotency.
+- Structured error responses.
+- Request logging.
+- Upload acknowledgement.
+
+The API must be documented with Swagger/OpenAPI in development mode.
+
+## 22. Observation synchronization
+
+Every observation must include:
+
+- Unique observation ID.
+- Device identity reference.
+- Scanner ID.
+- Timestamp in UTC.
+- RSSI.
+- Available advertisement metadata.
+- Inspection session ID.
+- Location label.
+- Observation source.
+
+The server must preserve the original observation timestamp.
+
+If Android uploads old measurements after being offline, the server must not treat them as newly detected devices.
+
+Store:
+- Observation time.
+- Upload time.
+- Processing time.
+
+This distinction is essential for accurate historical analysis.
+
+---
+
+# PART 5 — DATABASE
+
+## 23. SQLite schema
+
+Create these primary tables:
+
+### Devices
+- Id
+- CustomName
+- Category
+- Manufacturer
+- AdvertisedName
+- IdentityFingerprint
+- AssignedRoom
+- AssignedWorkstation
+- Notes
+- CreatedAt
+- UpdatedAt
+
+### DeviceIdentifiers
+- Id
+- DeviceId
+- IdentifierType
+- IdentifierValue
+- FirstSeen
+- LastSeen
+- Confidence
+- IsUserConfirmed
+
+### Scanners
+- Id
+- Name
+- Platform
+- HardwareDescription
+- LastSeen
+- Status
+- CreatedAt
+
+### Observations
+- Id
+- DeviceId
+- ScannerId
+- TimestampUtc
+- UploadedAtUtc
+- Rssi
+- ManufacturerData
+- ServiceUuids
+- AdvertisementData
+- InspectionSessionId
+- LocationLabel
+
+### PresenceEvents
+- Id
+- DeviceId
+- ScannerId
+- EventType
+- TimestampUtc
+- Duration
+- Confidence
+- Explanation
+
+### ConnectionTests
+- Id
+- DeviceId
+- ScannerId
+- StartedAtUtc
+- CompletedAtUtc
+- Attempts
+- SuccessfulAttempts
+- FailedAttempts
+- TimeoutCount
+- ErrorDetails
+- TestConfiguration
+
+### InspectionSessions
+- Id
+- ScannerId
+- LocationLabel
+- StartedAtUtc
+- EndedAtUtc
+- Notes
+
+### FaultReports
+- Id
+- DeviceId
+- FaultType
+- Severity
+- Confidence
+- HealthScore
+- Description
+- CreatedAtUtc
+- ResolvedAtUtc
+
+### UsbEvents
+- Id
+- HardwareId
+- VendorId
+- ProductId
+- DeviceInstanceId
+- EventType
+- TimestampUtc
+
+### ApplicationEvents
+- Id
+- Source
+- Severity
+- EventType
+- Message
+- TimestampUtc
+
+Add appropriate indexes for:
+- Device ID.
+- Scanner ID.
+- Timestamp.
+- Event type.
+- Location.
+- Device category.
+
+Implement database migrations.
+
+Use transactions for batch synchronization.
+
+Support configurable database backup and restore.
+
+---
+
+# PART 6 — DIAGNOSTIC ENGINE
+
+## 24. Detection algorithms
+
+Implement separate algorithms instead of one opaque score.
+
+### Algorithm A: Presence gap detection
+
+Estimate expected observation intervals from actual historical advertisement intervals.
+
+Use configurable detection windows.
+
+Calculate:
+- Expected observation frequency.
+- Actual observation frequency.
+- Missing intervals.
+- Gap duration.
+- Reappearance time.
+- Gap frequency.
+
+Account for scanner downtime and Android background restrictions.
+
+Do not count periods without scanner coverage as device failures.
+
+### Algorithm B: RSSI stability
+
+Calculate:
+- Rolling average RSSI.
+- Standard deviation.
+- Minimum RSSI.
+- Maximum RSSI.
+- RSSI variation.
+- Sudden degradation.
+- Recovery pattern.
+
+Use configurable observation windows.
+
+### Algorithm C: Multi-device correlation
+
+Identify devices experiencing problems during overlapping time windows.
+
+Compare:
+- Disappearance timestamps.
+- Signal degradation.
+- Scanner identity.
+- Room.
+- Workstation.
+- Inspection session.
+
+Produce possible shared-environment alerts.
+
+Do not automatically claim that Wi-Fi, USB 3.0 or a particular receiver caused interference without supporting evidence.
+
+### Algorithm D: Device repeatability
+
+Evaluate confirmed active-test results.
+
+Calculate:
+- Successful connection rate.
+- Failed connection rate.
+- Timeout rate.
+- Average connection duration.
+- Repeated error codes.
+
+Separate passive discovery reliability from actual connection reliability.
+
+### Algorithm E: Diagnostic recommendations
+
+Generate explanations based on observed evidence.
+
+Examples:
+
+"Repeated advertisement gaps observed. Check device power, scanner placement and local radio conditions."
+
+"Multiple devices experienced signal degradation simultaneously. Investigate the scanning environment."
+
+"Device consistently appears in BLE scans but active GATT connection attempts fail. Investigate device availability, connection ownership and GATT compatibility."
+
+Recommendations must be evidence-based.
+
+---
+
+# PART 7 — SECURITY AND PRIVACY
+
+## 25. Security requirements
+
+- No third-party telemetry.
+- No advertising SDKs.
+- No analytics SDKs.
+- No cloud synchronization.
+- Local database encryption option.
+- Secure API authentication.
+- Pairing token revocation.
+- Local network access controls.
+- Input validation.
+- Safe error handling.
+- No storage of unnecessary personal information.
+- Configurable data retention.
+- Database backup and restore.
+
+Bluetooth addresses and manufacturer data can be sensitive identifiers. Keep them locally and provide an option to anonymize exported diagnostic reports.
+
+---
+
+# PART 8 — PERFORMANCE AND RELIABILITY
+
+## 26. Performance requirements
+
+The application must support:
+
+- 170+ registered devices.
+- 500+ registered devices as an expansion target.
+- Multiple scanning sessions.
+- Multiple Android scanners.
+- Continuous observation storage.
+- Historical queries.
+- Real-time dashboard updates.
+- Large event histories.
+- Batch uploads.
+- Database backups.
+
+Use asynchronous processing.
+
+Do not perform database operations directly on the UI thread.
+
+Use a bounded observation queue to prevent excessive memory usage.
+
+Implement database batching and indexing.
+
+Keep the interface responsive during continuous scanning.
+
+Provide configurable observation retention and database maintenance.
+
+## 27. Fault tolerance
+
+Implement:
+
+- Automatic API recovery.
+- Automatic synchronization retries.
+- Local Android queue.
+- Windows server restart recovery.
+- SQLite integrity checks.
+- Application crash logging.
+- Scanner recovery.
+- Bluetooth adapter state monitoring.
+- Graceful shutdown.
+- Database backup before migrations.
+
+If the Windows server stops, Android continues collecting data locally.
+
+If the Android application stops, Windows continues its own scanning.
+
+Neither application should depend on the other to function.
+
+---
+
+# PART 9 — TESTING AND ACCEPTANCE
+
+## 28. Development test strategy
+
+Create automated tests for:
+
+- Device identity matching.
+- Randomized address handling.
+- Duplicate observations.
+- RSSI calculations.
+- Presence-gap detection.
+- Health-score calculations.
+- Correlation detection.
+- API authentication.
+- Batch synchronization.
+- Offline recovery.
+- Database migration.
+- Export functionality.
+
+Create simulated BLE observations for automated tests.
+
+Clearly distinguish simulated data from actual hardware measurements.
+
+### Hardware validation
+
+Test with actual:
+- Lovense Lush devices.
+- Bluetooth lighting controllers.
+- Bluetooth keyboard and mouse devices.
+- Logitech USB receivers.
+- At least two different Android phones if available.
+- Windows Bluetooth adapters.
+
+### Acceptance criteria
+
+The application is not considered complete until:
+
+1. Windows starts and operates without internet access.
+2. Android can pair with Windows using QR code.
+3. Android can discover actual BLE devices.
+4. Windows can independently discover BLE advertisements.
+5. Both platforms can record timestamped observations.
+6. Data synchronization works.
+7. Offline Android measurements are recovered.
+8. Devices can be manually identified and renamed.
+9. Historical signal charts work.
+10. Repeated presence gaps are detected.
+11. Fault ranking works.
+12. Multiple-device correlation works.
+13. Active tests are restricted to selected devices.
+14. USB events are recorded.
+15. Database backup and restore work.
+16. APK can be installed locally.
+17. Windows application can run as a portable deployment.
+18. No ads or tracking are present.
+
+---
+
+# PART 10 — DEVELOPMENT PHASES
+
+## 29. Implementation order
+
+Do not attempt to build everything in one untested implementation.
+
+### Phase 1 — Core Windows application
+
+- Project structure.
+- Database.
+- Device inventory.
+- Windows BLE scanner.
+- Live dashboard.
+- Device history.
+- Event logging.
+
+Deliverable: Working Windows application with real BLE scanning.
+
+### Phase 2 — Android scanner
+
+- Android project.
+- Bluetooth permissions.
+- BLE scanning.
+- Live RSSI.
+- Local Room database.
+- Continuous foreground scanning.
+- Background scanning.
+- Inspection sessions.
+
+Deliverable: Installable Android APK.
+
+### Phase 3 — Windows/Android integration
+
+- Local API.
+- QR pairing.
+- Authentication.
+- Batch synchronization.
+- Offline queue.
+- Multi-scanner support.
+
+Deliverable: Working two-platform system.
+
+### Phase 4 — Fault detection
+
+- Presence-gap engine.
+- RSSI stability engine.
+- Health scoring.
+- Worst Offenders dashboard.
+- Historical correlation.
+- Diagnostic recommendations.
+
+Deliverable: Automated device troubleshooting.
+
+### Phase 5 — Active diagnostics
+
+- Selected-device testing.
+- Connection attempts.
+- GATT error recording.
+- Repeatability reports.
+- Safety restrictions.
+
+Deliverable: Controlled connection testing.
+
+### Phase 6 — Professional release
+
+- Performance optimization.
+- Backup and restore.
+- Logging.
+- Error recovery.
+- Windows portable publishing.
+- APK signing.
+- Documentation.
+- Hardware acceptance testing.
+
+Deliverable: Production-ready local application.
+
+---
+
+# PART 11 — CLAUDE CODE DEVELOPMENT PROMPT
+
+You are a senior Windows desktop developer, Android developer, Bluetooth Low Energy specialist, database architect and QA engineer.
+
+Your task is to design and implement a complete application called **Bluetooth Fleet Monitor**.
+
+The application consists of two independent but synchronized products:
+
+1. Bluetooth Fleet Monitor for Windows 11.
+2. Bluetooth Fleet Monitor Mobile for Android.
+
+The complete requirements are defined in Parts 1–10 of this specification. Treat those requirements as the source of truth.
+
+## A. Development rules
+
+1. Work in:
+   `C:\Projects1\Bluetooth Analizer Best`
+
+2. Inspect the existing directory before creating or modifying files.
+
+3. Preserve useful existing work.
+
+4. Create a clean, maintainable solution structure.
+
+5. Use .NET 10 LTS for the Windows application.
+
+6. Use Kotlin and Jetpack Compose for Android.
+
+7. Use SQLite as the authoritative Windows database and Room as the Android offline database.
+
+8. Use a local ASP.NET Core REST API for communication.
+
+9. Do not use cloud services.
+
+10. Do not add advertising, analytics, tracking or paid features.
+
+11. Do not implement fake Bluetooth functionality.
+
+12. Do not use simulated data in production dashboards unless the user explicitly enables demo mode.
+
+13. Do not report a device as disconnected merely because an advertisement was not received.
+
+14. Do not automatically connect to or control Lovense toys.
+
+15. Active connection tests must only operate on explicitly selected devices.
+
+16. Do not send proprietary device-control commands.
+
+17. Never silently discard observations.
+
+18. Implement proper error handling and structured logging.
+
+19. Build and test each phase before proceeding.
+
+20. Do not declare a feature complete merely because its UI has been created.
+
+## B. Initial project inspection
+
+Before coding:
+
+- Inspect the project directory.
+- Check installed .NET SDKs.
+- Check Android SDK and JDK availability.
+- Check installed Visual Studio or build tools.
+- Identify available Windows Bluetooth APIs.
+- Identify the Windows Bluetooth adapter.
+- Check whether the current machine supports BLE scanning.
+- Identify Android build requirements.
+- Check existing dependencies and project files.
+
+Create:
+
+`PROJECT_PLAN.md`
+
+`TECHNICAL_ARCHITECTURE.md`
+
+`IMPLEMENTATION_STATUS.md`
+
+`TEST_PLAN.md`
+
+`KNOWN_LIMITATIONS.md`
+
+The implementation status document must identify:
+- Completed features.
+- Incomplete features.
+- Features awaiting hardware testing.
+- Known platform limitations.
+- Build errors.
+- Outstanding bugs.
+
+Do not invent hardware test results.
+
+## C. Solution structure
+
+Use a clean modular architecture.
+
+Suggested structure:
+
+```text
+BluetoothFleetMonitor/
+│
+├── Windows/
+│   ├── BluetoothFleetMonitor.sln
+│   ├── Desktop/
+│   ├── Application/
+│   ├── Domain/
+│   ├── Infrastructure/
+│   ├── Bluetooth/
+│   ├── UsbMonitoring/
+│   ├── Server/
+│   ├── Diagnostics/
+│   ├── Database/
+│   └── Tests/
+│
+├── Android/
+│   └── BluetoothFleetMonitor/
+│       ├── app/
+│       ├── core/
+│       ├── data/
+│       ├── domain/
+│       ├── bluetooth/
+│       ├── sync/
+│       └── ui/
+│
+├── Shared/
+│   ├── ApiContracts/
+│   └── Documentation/
+│
+├── Scripts/
+│
+├── Builds/
+│
+└── Documentation/
+```
+
+Adjust the structure if a more maintainable arrangement is necessary.
+
+Keep Android and Windows domain logic independent where platform APIs differ.
+
+Share API contracts through documented schemas or generated compatible models rather than coupling the two applications to one platform-specific library.
+
+## D. Windows implementation requirements
+
+Build the complete Windows application using WPF and MVVM.
+
+Implement:
+
+- Professional dark interface.
+- Navigation.
+- Dashboard.
+- Device inventory.
+- Live monitor.
+- Windows BLE scanner.
+- SQLite database.
+- Device history.
+- Event log.
+- Fault detection.
+- Diagnostic scoring.
+- USB monitoring.
+- Local API server.
+- QR pairing.
+- Reports.
+- Settings.
+- Backup and restore.
+
+Use asynchronous operations and background workers.
+
+Use a reliable dispatcher mechanism for updating UI-bound collections.
+
+The Bluetooth scanner must report its actual operational state.
+
+Handle Bluetooth adapter disabled, unavailable, permission failures and scanner interruptions.
+
+For initial development, support the Windows default Bluetooth scanning adapter. Keep the architecture expandable, but do not claim independent multi-adapter support without verifying that the selected Windows APIs expose the necessary functionality.
+
+## E. Android implementation requirements
+
+Build the Android application as a native Kotlin application.
+
+Implement:
+
+- Jetpack Compose UI.
+- BLE scanner.
+- RSSI monitoring.
+- Device discovery.
+- Device inventory.
+- Local Room storage.
+- Continuous foreground scanning.
+- Background scanning.
+- Mobile inspection.
+- Manual room selection.
+- Signal radar.
+- Device details.
+- Local synchronization queue.
+- QR pairing.
+- Server synchronization.
+- Connection status.
+- Permission management.
+
+Use the correct Android permissions for the supported API levels.
+
+Implement appropriate foreground-service declarations and notifications.
+
+Background scanning must use Android-supported mechanisms and explicitly report interruptions.
+
+Implement battery-optimization guidance.
+
+Do not make background scanning appear continuous if Android has suspended it.
+
+## F. Synchronization implementation
+
+Implement a reliable API between Windows and Android.
+
+Requirements:
+
+- QR-based pairing.
+- Unique scanner identity.
+- Authentication.
+- Batch upload.
+- Offline queue.
+- Retry logic.
+- Idempotent requests.
+- Server acknowledgements.
+- UTC timestamps.
+- Upload timestamps.
+- Synchronization status.
+
+The Android application must never overwrite newer server information with stale observations.
+
+The Windows server must correctly distinguish old observations from current observations.
+
+## G. Fault detection implementation
+
+Build an independent diagnostic subsystem.
+
+Implement:
+
+1. Presence-gap detection.
+2. RSSI stability analysis.
+3. Signal trend analysis.
+4. Device recovery analysis.
+5. Multi-device event correlation.
+6. Active connection-test statistics.
+7. Device health scoring.
+8. Fault ranking.
+9. Diagnostic recommendations.
+
+Make all thresholds configurable.
+
+Display the evidence behind each recommendation.
+
+Never identify a device as defective solely because it has a weak RSSI measurement.
+
+Distinguish:
+- Device issue.
+- Environmental issue.
+- Scanner issue.
+- Application issue.
+- Unknown cause.
+
+When there is insufficient evidence, report "Insufficient data".
+
+## H. Active testing safety
+
+Implement active connection tests only after passive scanning is functional.
+
+Tests must be explicitly initiated by the user.
+
+Before a test, display the selected device and warn about possible interference with an existing application connection.
+
+Never disconnect existing connections.
+
+Never automatically connect to all registered devices.
+
+Do not implement Lovense control functionality or proprietary protocol reverse engineering.
+
+## I. Interface requirements
+
+The Windows interface should resemble professional network diagnostic software.
+
+Use:
+- Dark theme.
+- Clear typography.
+- Compact tables.
+- Search and filtering.
+- Sortable columns.
+- Useful charts.
+- Detailed device pages.
+- Persistent navigation.
+- Clear error states.
+- Configurable notifications.
+
+The Android interface should be compact and designed for one-handed use during physical inspections.
+
+Maintain a consistent design language across both products.
+
+Avoid unnecessary animations and decorative effects.
+
+## J. Testing requirements
+
+Create automated unit tests for:
+
+- Device identity.
+- Address changes.
+- Duplicate observations.
+- RSSI calculations.
+- Presence gaps.
+- Diagnostic scoring.
+- Correlation.
+- API validation.
+- Synchronization.
+- Offline recovery.
+- Database migrations.
+
+Create integration tests for Windows API and Android BLE scanning abstractions.
+
+Create a hardware validation checklist.
+
+Do not mark hardware integration tests as passed without actually testing the hardware.
+
+## K. Build and release
+
+Create:
+
+### Windows
+- Portable self-contained Windows x64 deployment.
+- Optional installer.
+- Application configuration file.
+- Database backup functionality.
+- Startup shortcut option.
+- Logging directory.
+- Documentation.
+
+### Android
+- Debug APK for development.
+- Signed release APK.
+- Installation instructions.
+- Version information.
+- Permissions documentation.
+
+Do not require internet connectivity to use either application after installation.
+
+## L. Development workflow
+
+Follow this workflow:
+
+1. Inspect the environment.
+2. Create the project plan.
+3. Establish architecture.
+4. Build the Windows application.
+5. Test Windows BLE scanning.
+6. Implement the Android scanner.
+7. Test Android BLE scanning.
+8. Implement the synchronization API.
+9. Test offline synchronization.
+10. Implement device history.
+11. Implement fault detection.
+12. Implement active diagnostics.
+13. Optimize performance.
+14. Run automated tests.
+15. Build Windows deployment.
+16. Build Android APK.
+17. Document installation and usage.
+
+At the end of every phase:
+
+- Build the affected projects.
+- Run relevant automated tests.
+- Resolve errors before proceeding.
+- Update implementation status.
+- Record any hardware limitations.
+
+Do not replace working code with simplified mock implementations.
+
+Do not remove existing features to make a build pass.
+
+Do not silently ignore errors.
+
+If a Windows or Android Bluetooth API cannot perform a requested operation, document the limitation and propose a technically valid alternative.
+
+## M. Final deliverables
+
+The completed project must include:
+
+1. Windows 11 application source code.
+2. Android application source code.
+3. Windows portable deployment.
+4. Android release APK.
+5. SQLite database implementation.
+6. Local API server.
+7. QR pairing.
+8. Bluetooth scanner.
+9. Device inventory.
+10. Historical observations.
+11. Fault detection engine.
+12. Worst Offenders dashboard.
+13. Signal analysis.
+14. Mobile inspection.
+15. Offline synchronization.
+16. Controlled active testing.
+17. USB monitoring.
+18. Backup and restore.
+19. Automated tests.
+20. Installation documentation.
+21. User manual.
+22. Technical architecture documentation.
+23. Known limitations documentation.
+
+**Final objective:**
+
+Deliver a fully functional, locally operated Bluetooth Fleet Monitor that can discover and monitor a fleet of 170+ devices, use an Android phone for mobile signal inspection, centralize all collected information in Windows 11, identify recurring device instability, distinguish hardware faults from environmental problems, and provide actionable diagnostic reports.
+
+Start by inspecting the development environment and creating the project plan. Do not attempt to implement the entire application in one untested step.
+
+Build real functionality incrementally, validate it, and maintain a working project throughout development.

@@ -1,0 +1,31 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <SupportedOSPlatformVersion>10.0.17763.0</SupportedOSPlatformVersion>
+    <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.4" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Sqlite" Version="10.0.15" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.14.1" />
+    <PackageReference Include="xunit" Version="2.9.3" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Domain\BluetoothFleetMonitor.Domain.csproj" />
+    <ProjectReference Include="..\Application\BluetoothFleetMonitor.Application.csproj" />
+    <ProjectReference Include="..\Database\BluetoothFleetMonitor.Database.csproj" />
+    <ProjectReference Include="..\Diagnostics\BluetoothFleetMonitor.Diagnostics.csproj" />
+    <ProjectReference Include="..\Bluetooth\BluetoothFleetMonitor.Bluetooth.csproj" />
+  </ItemGroup>
+
+</Project>

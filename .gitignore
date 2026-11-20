@@ -1,0 +1,30 @@
+# Build output
+bin/
+obj/
+dist/Builds/
+*.exe
+*.apk
+*.aab
+*.ipa
+
+# IDE / machine-specific
+.vs/
+.idea/
+*.user
+local.properties
+.gradle/
+build/
+
+# Runtime data (local database, logs, backups)
+Logs/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+
+# Graphify output
+graphify-out/
+
+# Signing material - never commit
+*.jks
+*.keystore
