@@ -72,6 +72,9 @@ object Rssi {
         return Math.sqrt(samples.sumOf { (it - m) * (it - m) } / (samples.size - 1))
     }
 
-    /** Unstable = at least 10 samples and a spread of 6 dB or more. Never a verdict that the device is faulty. */
-    fun isUnstable(samples: List<Int>): Boolean = samples.size >= 10 && stdDev(samples) >= 6.0
+    /**
+     * Unstable = at least 10 samples, a spread of 6 dB or more, and an average above the noise floor. Signals near -90 dBm
+     * fluctuate wildly for ordinary reasons, so they are reported as weak, not unstable. Never a verdict that a device is faulty.
+     */
+    fun isUnstable(samples: List<Int>): Boolean = samples.size >= 10 && samples.average() >= -88.0 && stdDev(samples) >= 6.0
 }

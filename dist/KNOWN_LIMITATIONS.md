@@ -27,7 +27,7 @@
 ## Verification limits
 
 - The Windows scanner has been verified with a real radio for Passive scanning only (30 s test). Active mode, unplug/replug recovery, Bluetooth off/on and long runs are unverified. See `IMPLEMENTATION_STATUS.md`.
-- Windows 10 not run. Android code has not been run on a phone. iPhone not applicable yet.
+- Windows 10 not run. Android has been run on one phone only (Galaxy A52s, Android 14), and not every feature. iPhone not applicable yet.
 
 ## Android limits
 
@@ -35,8 +35,9 @@
 - **`neverForLocation`.** The app declares it never derives location from scans, so Android 12+ does not require location permission, but Android may then filter out beacon-style advertisements (iBeacon/Eddystone). Fleet devices that advertise normally are unaffected.
 - **Android 10-11 need the Location setting switched on** for any scan result to be delivered, even though no location is recorded.
 - **Background mode** uses an OS-managed filtered scan. Android only keeps it running with the screen off if it is filtered, and `ScanFilter` supports exact device names, not prefixes. Android may still stop it (battery saver, vendor task killers). Unfiltered background scans pause when the screen is off. Interruptions are recorded when the app can detect them; if the OS silently stops delivering results the status falls to "running, hearing nothing" instead of claiming coverage.
-- **Foreground service** (Continuous/Inspection) is the reliable mode. Android 15 restricts starting such services from the background, so a scan stopped by a phone restart is recorded as a gap and must be restarted by hand.
+- **Screen off pauses open-ended scans.** Measured on a Galaxy A52s (Android 14): with the screen off Android suspended the unfiltered scan, even inside a foreground service. The app therefore narrows to a scan filtered to the already-known device addresses while the screen is off. Consequences: devices never seen before are not discovered until the screen is on, and a large watch list may be handled by Android in software, which costs more battery. Keep the screen on (or use Inspection mode while walking) when you need discovery.
+- **Foreground service** (Continuous/Inspection) keeps the process alive, but not an unfiltered scan (see above). Android 15 restricts starting such services from the background, so a scan stopped by a phone restart is recorded as a gap and must be restarted by hand.
 - **Sampling, not every advertisement.** Each device is stored as one window per interval with last/min/max/average RSSI and a count. Setting the interval to 0 stores everything but fills storage quickly (170 devices can produce hundreds of thousands of rows an hour).
 - **No upload yet.** Until Phase 3 nothing leaves the phone and nothing is deleted automatically.
 - **Release builds** are currently signed with the debug key (local install only). A real signing key arrives in Phase 6.
-- **Never run on a phone.** See `IMPLEMENTATION_STATUS.md`.
+- **Partly verified on one phone** (Galaxy A52s, Android 14). Other models and Android versions are untested; Samsung and other vendors add their own background-process killers. See `IMPLEMENTATION_STATUS.md`.

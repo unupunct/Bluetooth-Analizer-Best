@@ -173,5 +173,6 @@ class RssiTest {
         assertFalse(Rssi.isUnstable(List(9) { if (it % 2 == 0) -50 else -90 }))
         assertTrue(Rssi.isUnstable(List(10) { if (it % 2 == 0) -50 else -90 }))
         assertFalse(Rssi.isUnstable(List(10) { -65 }))
+        assertFalse(Rssi.isUnstable(List(10) { if (it % 2 == 0) -95 else -105 }))   // noise floor: weak, not unstable
     }
 }

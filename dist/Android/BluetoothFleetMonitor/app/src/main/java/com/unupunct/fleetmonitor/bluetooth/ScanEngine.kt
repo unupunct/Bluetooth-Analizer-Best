@@ -12,6 +12,7 @@ import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
+import android.os.PowerManager
 import com.unupunct.fleetmonitor.data.DeviceFacts
 import com.unupunct.fleetmonitor.data.FleetRepository
 import com.unupunct.fleetmonitor.data.ScanMode
@@ -66,6 +67,10 @@ class ScanEngine @Inject constructor(
     val mode: StateFlow<ScanMode> = _mode.asStateFlow()
     val activeSession: StateFlow<Pair<String, String>?> = _session.asStateFlow()
 
+    private val _scanScope = MutableStateFlow(SCOPE_ALL)
+    /** What the scan can currently hear. Android pauses open-ended scans when the screen is off, so the scope narrows then. */
+    val scanScope: StateFlow<String> = _scanScope.asStateFlow()
+
     private val heard = AtomicLong()
     private val stored = AtomicLong()
     private val dropped = AtomicLong()
@@ -107,12 +112,15 @@ class ScanEngine @Inject constructor(
         val last = settings.heartbeatMs
         val now = System.currentTimeMillis()
         settings.wantScanning = false
-        if (last > 0 && now - last > HEARTBEAT_GRACE_MS) {
+        // Any unclean end counts. The heartbeat is written every 10 s, so the true start of the gap is at most 10 s after `last`;
+        // we record from `last` (the earliest it could have started) rather than hide a short outage behind a grace period.
+        if (last > 0) {
+            val reason = "The app was not scanning (process stopped or phone restarted)"
             scope.launch {
-                repo.addPastGap(last, now, "The app was not scanning (process stopped or phone restarted)")
-                repo.recordEvent("Warning", "ScanInterrupted", "Scanning stopped unexpectedly between ${last} and ${now}. Open the Scanner tab to resume.")
+                repo.addPastGap(last, now, reason)
+                repo.recordEvent("Warning", "ScanInterrupted", "Scanning stopped unexpectedly at about ${java.text.SimpleDateFormat("HH:mm:ss", java.util.Locale.getDefault()).format(java.util.Date(last))}. Open the Scanner tab to resume.")
             }
-            health.recordPastGap(last, now, "The app was not scanning (process stopped or phone restarted)")
+            health.recordPastGap(last, now, reason)
         }
         health.stopped(requestedByUser = false, reason = "the app or the phone restarted while scanning")
         publishStatus()
@@ -148,6 +156,8 @@ class ScanEngine @Inject constructor(
             interrupt(error)
             return error
         }
+        if (newMode != ScanMode.Background && !(context.getSystemService(Context.POWER_SERVICE) as PowerManager).isInteractive)
+            scope.launch { narrowToKnownDevices() }
         return null
     }
 
@@ -157,6 +167,7 @@ class ScanEngine @Inject constructor(
         retry?.cancel()
         stopScanning()
         unregisterBluetoothReceiver()
+        _scanScope.value = SCOPE_ALL
         if (running) {
             running = false
             health.stopped(requestedByUser = byUser, reason = if (byUser) null else "stopped")
@@ -254,8 +265,7 @@ class ScanEngine @Inject constructor(
                 val code = s.startScan(backgroundFilters(), backgroundSettings(), backgroundIntent())
                 if (code != 0) "Background scan could not start: ${ScanMapping.scanFailureText(code)}" else null
             } else {
-                val low = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).setReportDelay(0).build()
-                s.startScan(null, low, callback)
+                s.startScan(null, lowLatency(), callback)
                 null
             }
         } catch (e: SecurityException) {
@@ -275,7 +285,51 @@ class ScanEngine @Inject constructor(
 
     private fun backgroundFilters(): List<ScanFilter> {
         val names = settings.settings.value.backgroundDeviceNames.split(',').map { it.trim() }.filter { it.isNotEmpty() }
-        return if (names.isEmpty()) listOf(ScanFilter.Builder().build()) else names.map { ScanFilter.Builder().setDeviceName(it).build() }
+        if (names.isNotEmpty()) return names.map { ScanFilter.Builder().setDeviceName(it).build() }
+        // No names given: watch the devices already known. An empty filter would be an open-ended scan, which Android pauses with the screen off.
+        val known = runBlocking { repo.allDevices().map { it.address } }.mapNotNull(::addressFilter)
+        return known.ifEmpty { listOf(ScanFilter.Builder().build()) }
+    }
+
+    private fun addressFilter(address: String): ScanFilter? {
+        val colon = address.chunked(2).joinToString(":")
+        return if (BluetoothAdapter.checkBluetoothAddress(colon)) ScanFilter.Builder().setDeviceAddress(colon).build() else null
+    }
+
+    private fun lowLatency() = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_LATENCY).setReportDelay(0).build()
+
+    /** Screen went off: swap the open-ended scan for one filtered to known devices, which Android keeps running. */
+    private suspend fun narrowToKnownDevices() {
+        val addresses = (repo.allDevices().map { it.address } + _live.value.map { it.address }).toSet()
+        var message: String? = null
+        synchronized(this) {
+            if (!running || _mode.value == ScanMode.Background) return
+            stopScanning()
+            val filters = addresses.mapNotNull(::addressFilter)
+            if (filters.isEmpty()) {
+                _scanScope.value = "Paused: the screen is off and no devices are known yet"
+                message = "Screen off with no known devices: Android pauses open-ended scans, so nothing can be heard until the screen is on."
+            } else {
+                val error = try { scanner?.startScan(filters, lowLatency(), callback); null }
+                    catch (e: SecurityException) { "Scan permission was revoked." }
+                    catch (e: IllegalStateException) { "Bluetooth is not ready: ${e.message}" }
+                if (error != null) { interrupt(error); return }
+                _scanScope.value = "Screen off: watching ${filters.size} known devices only"
+                message = "Screen off: scan narrowed to ${filters.size} known devices (Android pauses open-ended scans when the screen is off). New devices are not discovered until the screen is on."
+            }
+        }
+        message?.let { repo.recordEvent("Info", "ScanScope", it) }
+    }
+
+    private suspend fun widenToAllDevices() {
+        var failed: String? = null
+        synchronized(this) {
+            if (!running || _mode.value == ScanMode.Background) return
+            stopScanning()
+            failed = startScanning()
+            if (failed != null) interrupt(failed!!) else _scanScope.value = SCOPE_ALL
+        }
+        if (failed == null) repo.recordEvent("Info", "ScanScope", "Screen on: scanning all nearby devices again")
     }
 
     private fun backgroundSettings() = ScanSettings.Builder().setScanMode(ScanSettings.SCAN_MODE_LOW_POWER).setReportDelay(0).build()
@@ -298,15 +352,27 @@ class ScanEngine @Inject constructor(
         }
     }
 
+    private val screenReceiver = object : BroadcastReceiver() {
+        override fun onReceive(c: Context, i: Intent) {
+            if (!running || _mode.value == ScanMode.Background) return
+            when (i.action) {
+                Intent.ACTION_SCREEN_OFF -> scope.launch { narrowToKnownDevices() }
+                Intent.ACTION_SCREEN_ON -> scope.launch { widenToAllDevices() }
+            }
+        }
+    }
+
     private fun registerBluetoothReceiver() {
         if (receiverRegistered) return
         context.registerReceiver(btReceiver, IntentFilter(BluetoothAdapter.ACTION_STATE_CHANGED))
+        context.registerReceiver(screenReceiver, IntentFilter(Intent.ACTION_SCREEN_OFF).apply { addAction(Intent.ACTION_SCREEN_ON) })
         receiverRegistered = true
     }
 
     private fun unregisterBluetoothReceiver() {
         if (!receiverRegistered) return
         runCatching { context.unregisterReceiver(btReceiver) }
+        runCatching { context.unregisterReceiver(screenReceiver) }
         receiverRegistered = false
     }
 
@@ -410,8 +476,8 @@ class ScanEngine @Inject constructor(
     fun coverageGaps(): List<CoverageGap> = health.gaps
 
     companion object {
+        const val SCOPE_ALL = "All nearby devices"
         private const val QUEUE_CAPACITY = 20_000
         private const val SAMPLE_CAP = 60
-        private const val HEARTBEAT_GRACE_MS = 30_000L
     }
 }

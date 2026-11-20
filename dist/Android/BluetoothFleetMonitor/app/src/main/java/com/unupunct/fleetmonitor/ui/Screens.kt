@@ -66,6 +66,7 @@ fun ScannerScreen(vm: FleetViewModel) {
     val running by vm.mode.collectAsState()
     val rows by vm.rows.collectAsState()
     val gaps by vm.gaps.collectAsState()
+    val scope by vm.engine.scanScope.collectAsState()
     val phone by rememberPhoneState()
     val settings by vm.settings.collectAsState()
     var selected by remember { mutableStateOf(vm.mode.value) }
@@ -89,6 +90,8 @@ fun ScannerScreen(vm: FleetViewModel) {
                 color = when (status.state) { ScannerState.Running -> FleetColors.Good; ScannerState.Stopped -> FleetColors.Muted; else -> FleetColors.Warn })
             Text(status.message, color = FleetColors.Muted, fontSize = 13.sp)
             Spacer(Modifier.height(8.dp))
+            Label("Scope"); Text(scope, fontSize = 13.sp, color = if (scope == com.unupunct.fleetmonitor.bluetooth.ScanEngine.SCOPE_ALL) FleetColors.Fg else FleetColors.Warn)
+            Spacer(Modifier.height(8.dp))
             Label("Last advertisement"); Text(fmtTime(status.lastAdvertisementMs))
             Spacer(Modifier.height(8.dp))
             Label("Counters")
@@ -103,7 +106,7 @@ fun ScannerScreen(vm: FleetViewModel) {
         }
         Text(
             when (selected) {
-                ScanMode.Continuous -> "Foreground service with a visible notification. Keeps scanning with the screen off. Stores one window per device every ${settings.sampleContinuousSec} s."
+                ScanMode.Continuous -> "Foreground service with a visible notification. Scans every nearby device while the screen is on. With the screen off Android pauses open-ended scans, so the phone then watches only the devices already known. Stores one window per device every ${settings.sampleContinuousSec} s."
                 ScanMode.Background -> "Android-managed filtered scan that can survive the app being closed. Set exact device names in Settings; unfiltered scans are paused when the screen is off. Android may still stop it."
                 ScanMode.Inspection -> "For walking around: stores a window every ${settings.sampleInspectionSec} s. Start an inspection on the Sessions tab to tag results with a location."
             }, color = FleetColors.Muted, fontSize = 13.sp,
@@ -372,12 +375,13 @@ fun SessionsScreen(vm: FleetViewModel, onOpen: (String) -> Unit) {
                 Button(onClick = { vm.endInspection(notes) { ScanService.stop(ctx); notes = "" } }) { Text("End and save inspection") }
             }
             if (s != null) {
-                if (s.unstable.isNotEmpty()) { Label("Unstable right now"); s.unstable.forEach { DeviceCard(it) { onOpen(it.address) } } }
-                if (s.weak.isNotEmpty()) { Label("Weak signal"); s.weak.take(10).forEach { DeviceCard(it) { onOpen(it.address) } } }
+                if (s.unstable.isNotEmpty()) { Label("Unstable right now (${s.unstable.size})"); s.unstable.take(10).forEach { DeviceCard(it) { onOpen(it.address) } }; MoreNote(s.unstable.size, 10) }
+                if (s.weak.isNotEmpty()) { Label("Weak signal (${s.weak.size})"); s.weak.take(10).forEach { DeviceCard(it) { onOpen(it.address) } }; MoreNote(s.weak.size, 10) }
                 if (s.notHeard.isNotEmpty()) {
                     Label("Known from earlier but not heard in this inspection")
                     Text("This only means nothing was heard here yet; they may be switched off, out of range, or still to come into range.", color = FleetColors.Muted, fontSize = 12.sp)
-                    s.notHeard.take(20).forEach { DeviceCard(it) { onOpen(it.address) } }
+                    s.notHeard.take(10).forEach { DeviceCard(it) { onOpen(it.address) } }
+                    MoreNote(s.notHeard.size, 10)
                 }
             }
         }
@@ -397,6 +401,9 @@ fun SessionsScreen(vm: FleetViewModel, onOpen: (String) -> Unit) {
         }
     }
 }
+
+@Composable
+private fun MoreNote(total: Int, shown: Int) { if (total > shown) Text("+ ${total - shown} more (see the Nearby tab and filter by Weak / Unstable / Not heard)", color = FleetColors.Muted, fontSize = 12.sp) }
 
 // ============================================================ 7. Sync status
 

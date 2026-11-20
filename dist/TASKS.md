@@ -80,19 +80,19 @@ Un task e bifat doar după ce compilează, are teste unde se poate și a fost ve
 ## Faza 2 — Aplicația Android
 
 - [x] Proiect Kotlin + Compose + Hilt + Room, Gradle wrapper în `dist/Android` (wrapper fixat pe checksum verificat)
-- [~] Permisiuni: Android 10–11 (locație) și 12+ (Nearby Devices) (manifest verificat cu aapt2; fluxul de cerere netestat pe telefon)
-- [~] Scanner BLE `BluetoothLeScanner` (doar ascultare, fără conectare) (compilează; netestat pe telefon)
-- [~] Colectare: RSSI, nume, adresă, manufacturer data, UUIDs, flags, TX power, payload (netestat pe telefon)
-- [~] Bază locală Room (compilează, schemă exportată; teste instrumentate lipsesc - necesită telefon/emulator)
-- [~] Mod A — scanare continuă cu foreground service și notificare (netestat pe telefon)
+- [x] Permisiuni: Android 10–11 (locație) și 12+ (Nearby Devices) (verificat pe Galaxy A52s / Android 14; Android 10–11 netestat)
+- [x] Scanner BLE `BluetoothLeScanner` (doar ascultare, fără conectare) (verificat pe telefon: 267 dispozitive, 0 pierdute)
+- [~] Colectare: RSSI, nume, adresă, manufacturer data, UUIDs, flags, TX power, payload (RSSI/nume/adresă/manufacturer/UUID/payload verificate pe telefon; flags și TX power citite dar încă nesalvate)
+- [x] Bază locală Room (verificată pe telefon: 172-267 dispozitive, statistici consistente cu rândurile)
+- [~] Mod A — scanare continuă cu foreground service și notificare (service + notificare verificate; scanarea cu ecranul stins se oprea, acum trece pe lista dispozitivelor cunoscute - de retestat)
 - [~] Mod B — scanare în fundal (filtre, PendingIntent), raportare întreruperi (netestat pe telefon; filtrare doar pe nume exacte)
-- [~] Mod C — inspecție mobilă: alegere locație, note, salvare sesiune (netestat pe telefon)
+- [~] Mod C — inspecție mobilă: alegere locație, note, salvare sesiune (pornirea sesiunii verificată pe telefon; încheierea/salvarea nevăzută)
 - [~] Ecrane: Scanner, Nearby Devices, Signal Radar, Device Inspector, Signal History, Inspection Sessions, Sync Status, Settings (toate 8 compilează; nerulate pe telefon)
 - [~] Avertizare optimizare baterie (netestat pe telefon)
-- [~] Gestionare: Bluetooth oprit, permisiune revocată, repornire telefon, proces oprit (implementat; netestat pe telefon)
+- [~] Gestionare: Bluetooth oprit, permisiune revocată, repornire telefon, proces oprit (proces oprit verificat pe telefon; restul netestat)
 - [x] Teste unitare (28 de teste de logică pură: amprentă compatibilă cu Windows, agregare, prezență, sănătate scanner, RSSI)
 - [x] APK debug în `dist/Builds/Android` (FleetMonitor-0.2.0-debug.apk, 24,8 MB; permisiuni minime, fără INTERNET, fără SDK-uri de reclame/analitice)
-- [ ] 🔧 Test pe telefon real
+- [~] 🔧 Test pe telefon real (Galaxy A52s / Android 14: parțial, vezi IMPLEMENTATION_STATUS.md)
 
 ## Faza 3 — Legătura Windows ↔ Android
 

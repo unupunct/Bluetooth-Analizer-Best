@@ -59,14 +59,14 @@ cd dist\Android\BluetoothFleetMonitor
 
 Install on a phone (USB debugging on): `adb install -r <apk>`. Needs JDK 17 + Android SDK 35 (`dist\Scripts\Setup-DevEnvironment.ps1`).
 
-Phone checklist (a person ticks these; none are ticked):
+Phone checklist (ticked only where observed on a real phone):
 
-- [ ] First launch: permission prompt appears, grant works, Scanner tab turns green
-- [ ] Continuous mode: notification visible, scan continues with the screen off for 10+ minutes, devices appear in Nearby
+- [x] First launch: permission prompt appears, grant works, Scanner tab turns green (Galaxy A52s, Android 14)
+- [~] Continuous mode: notification visible and devices stored (verified); scan with the screen off was found to pause and was changed to a known-devices scan, which still needs a retest
 - [ ] Turn Bluetooth off during a scan: status Interrupted + a coverage gap; turn it on: scan resumes by itself
 - [ ] Revoke the permission while scanning: status explains it, no crash
-- [ ] Force-stop the app mid-scan, reopen: a gap is recorded and nothing claims coverage for the missing time
-- [ ] Inspection: start a session at "Studio 01", walk, end it; the session appears with device and window counts
+- [x] Force-stop the app mid-scan, reopen: a gap is recorded and nothing claims coverage for the missing time (Galaxy A52s)
+- [~] Inspection: session at "Studio 01" started and tagged 1,601 windows (verified); ending it and the saved-sessions list not yet seen
 - [ ] Background mode with a name filter: results arrive with the app closed and the screen off
 - [ ] The same device on the phone and on Windows has the same fingerprint (compare the Fleet fingerprints once Phase 3 sync exists)
 - [ ] Battery: scan for an hour with defaults, note the drain

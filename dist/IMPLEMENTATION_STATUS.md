@@ -31,21 +31,27 @@ Last updated: 2026-11-20, end of Phase 1 work. Build: `dotnet build` in `dist/Wi
 2. **After installing TP-Link UB500 V3.6 (driver 1.9.1051.3016, stack BTHUSB + RtkBtFilter):** `--scan-test --seconds 30` in Passive mode: **PASS**. 1,067 advertisements received and 1,067 stored, 0 queue overflow, 0 write errors, 56 distinct devices created (10 with a name, 1 `LVS-` Lovense). Address kinds seen: Public, RandomStatic, RandomResolvablePrivate and RandomNonResolvablePrivate. Worst observed-to-processed delay 0.72 s.
    - Identity heuristics in the wild: 3 devices absorbed more than one rotating address through a unique-fingerprint match (confidence 0.7). These are exactly the matches to review manually; the heuristic can be wrong when only one of two similar products is known.
    - Still untested: 30+ minute run, unplug/replug recovery, Bluetooth off/on, Active mode, Windows 10.
-## Android (Phase 2) - built, not yet run on a phone
+## Android (Phase 2) - built, partly verified on a real phone
+
+Phone used: Samsung Galaxy A52s 5G (SM-A528B), Android 14 (API 34), debug APK over ADB, 2026-11-20.
 
 | Area | State | Verification |
 |---|---|---|
 | Project | Kotlin 2.0.21, Compose (Material 3), Hilt, Room 2.6.1, AGP 8.7.3, Gradle 8.10.2 wrapper (pinned checksum), minSdk 29, targetSdk 35 | `gradlew assembleDebug` succeeds |
-| Domain logic | Windows-compatible device fingerprint, sampling-window aggregator, presence status, scanner health + coverage gaps, RSSI labels/trend/stability | 28 JVM unit tests pass; the fingerprint test pins values produced by the C# code |
-| Scanning | `BluetoothLeScanner` engine with a bounded queue, per-address sampling windows, batched Room writes, retries, recorded overflow, honest status | compiles; **not run on a phone** |
-| Modes | A Continuous (foreground service + notification), B Background (OS-managed PendingIntent scan, exact-name filters), C Inspection (locations, notes, sessions) | compiles; **not run on a phone** |
-| Interruptions | Bluetooth off/on, scan failure with retry, revoked permission, process/phone restart (heartbeat gap recorded) | compiles; **not run on a phone** |
-| Screens | Scanner, Nearby, Radar, Inspector, Signal History, Sessions, Sync Status (placeholder), Settings, plus Event log | compile; **never rendered** |
-| APK | `dist/Builds/Android/FleetMonitor-0.2.0-debug.apk`, 24.8 MB, debug-signed | `aapt2 dump permissions`: BLUETOOTH_SCAN (neverForLocation), foreground-service, notifications, legacy BT/location capped at API 30. **No INTERNET permission.** No ad/analytics/telemetry libraries found in the package |
+| Domain logic | Windows-compatible device fingerprint, sampling-window aggregator, presence status, scanner health + coverage gaps, RSSI labels/trend/stability | 28 JVM unit tests; the fingerprint test pins values produced by the C# code |
+| Install + permissions | Install over ADB, "Nearby devices" and notification prompts | **Verified on the phone**: both permissions granted through the real prompt (flag USER_SET), no INTERNET permission |
+| Real scanning (screen on) | `BluetoothLeScanner` -> queue -> sampling windows -> Room | **Verified on the phone**: first run 13,505 advertisements heard, 742 windows stored, 165 devices, 0 dropped, 0 lost; later run 267 devices. Database summary: manufacturer data, service UUIDs and raw payload stored, 12-13 manufacturers, `LVS-` devices seen, per-device statistics consistent with the rows |
+| Foreground service | Continuous/Inspection modes | **Verified on the phone**: `isForeground=true`, type connectedDevice, notification with a Stop action |
+| Process death while scanning | Gap + event + honest status | **Verified on the phone**: after killing the app mid-scan the next launch recorded a coverage gap (14:26:24 to 14:27:21), a warning event, and showed "Interrupted" with a banner instead of claiming coverage |
+| Inspection session | Start at a location, tag observations | **Verified on the phone** (start): session "Studio 01" created, 1,601 observation windows tagged with its id, live summary showed heard / known-but-not-heard / unstable / weak counts. End-and-save and the saved-sessions list were not seen working |
+| Screen-off scanning | **Found a real problem, fixed, fix NOT yet verified** | The Bluetooth stack's own dump showed the scan as `NonFilter` with `Suspended SCR_OFF`: Android paused the open-ended scan when the screen turned off (3 of 13,263 results delivered while off), even from a foreground service. Fix: when the screen turns off the app switches to a scan filtered to the known device addresses and says so ("Screen off: watching N known devices only"); it widens again when the screen turns on. Needs a retest on the phone |
+| Other screens | Nearby, Radar, Inspector, Signal History, Sync, Settings, More | compile; **not looked at on the phone** (a performance problem on the Sessions screen was found and fixed: it drew 70+ cards every second; lists are now capped at 10) |
+| "Unstable" flag | Was too sensitive: 43 of 167 devices flagged | Now ignores signals near the noise floor (average below -88 dBm is "weak", not "unstable"); covered by a new unit test; not re-checked on the phone |
+| APK | `dist/Builds/Android/FleetMonitor-0.2.0-debug.apk` (latest build is installed on the phone) | `aapt2`: BLUETOOTH_SCAN (neverForLocation), foreground-service, notifications, legacy BT/location capped at API 30. **No INTERNET permission.** No ad/analytics/telemetry libraries found |
 
 Design notes: a phone hears hundreds of advertisements per second, so each device gets one stored window per sampling interval (defaults: 10 s continuous, 2 s inspection, 30 s background) holding last/min/max/average RSSI and the number of advertisements heard. Every advertisement is counted; nothing is silently discarded. Rows that were never acknowledged by the server (Phase 3) are never deleted. Android does not reveal whether an address is public or random, so every distinct address is its own device on the phone and the Windows server reconciles identities in Phase 3.
 
-Not verified: everything that needs a real phone (permission prompts, scan results, foreground service survival with the screen off, background mode, Bluetooth toggle recovery, battery behaviour, UI layout on a real screen). No phone was attached over ADB.
+Known gaps: TX power and advertising flags are read from each advertisement but are **not stored** in the database yet (the spec lists them); Background mode has not been run; Bluetooth off/on recovery, permission revocation while scanning and the battery cost are untested.
 ## Not built yet (by design)
 
 Fault detection engine, health score, Worst Offenders, signal analysis (Phase 4); LAN API with QR pairing and sync (Phase 3); active connection tests (Phase 5); USB monitor, reports, in-app restore, release packaging (Phase 6); iOS (deferred; needs a Mac). Their navigation entries are marked with their phase and show "Not implemented yet". The Health column shows "-" instead of a number.
