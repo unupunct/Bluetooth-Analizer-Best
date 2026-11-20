@@ -52,14 +52,14 @@ Un task e bifat doar după ce compilează, are teste unde se poate și a fost ve
 
 ### Scanner BLE Windows
 - [x] Interfață `IBleScanner` (permite alte scannere mai târziu)
-- [~] Implementare cu `BluetoothLEAdvertisementWatcher`, **Passive implicit** (compilează, logica de stare testată; radio real neverificat - lipsește adaptorul pe acest PC)
+- [x] Implementare cu `BluetoothLEAdvertisementWatcher`, **Passive implicit** (verificat real: 1.067 reclame, 56 dispozitive, 0 pierdute)
 - [~] Mod Active doar ca opțiune explicită în Settings (opțiunea există; efectul real neverificat)
-- [~] Stare reală adaptor: lipsă / oprit / pornit / eroare / întrerupt (cazul „lipsă” verificat real; restul doar în teste unitare)
+- [~] Stare reală adaptor: lipsă / oprit / pornit / eroare / întrerupt („lipsă” și „pornit, dar surd” verificate real; restul doar în teste unitare)
 - [~] Detectare scoatere adaptor și repornire automată a scanării (implementat, netestat pe hardware)
 - [x] Înregistrare întreruperi scanner (acoperire scanner pentru diagnostic)
 - [x] Coadă limitată de observații (Channel) + scriere în loturi în bază
 - [x] Nicio observație pierdută fără înregistrare (overflow → ApplicationEvent)
-- [ ] 🔧 Verificare pe hardware: dispozitive reale apar în bază
+- [x] 🔧 Verificare pe hardware: dispozitive reale apar în bază (`--scan-test`, TP-Link UB500 V3.6)
 
 ### Interfață WPF (temă întunecată, MVVM)
 - [x] Fereastră principală + navigare (cele 14 secțiuni, inactive marcate cu faza)
@@ -79,19 +79,19 @@ Un task e bifat doar după ce compilează, are teste unde se poate și a fost ve
 
 ## Faza 2 — Aplicația Android
 
-- [ ] Proiect Kotlin + Compose + Hilt + Room, Gradle wrapper în `dist/Android`
-- [ ] Permisiuni: Android 10–11 (locație) și 12+ (Nearby Devices)
-- [ ] Scanner BLE `BluetoothLeScanner` (doar ascultare, fără conectare)
-- [ ] Colectare: RSSI, nume, adresă, manufacturer data, UUIDs, flags, TX power, payload
-- [ ] Bază locală Room
-- [ ] Mod A — scanare continuă cu foreground service și notificare
-- [ ] Mod B — scanare în fundal (filtre, PendingIntent), raportare întreruperi
-- [ ] Mod C — inspecție mobilă: alegere locație, note, salvare sesiune
-- [ ] Ecrane: Scanner, Nearby Devices, Signal Radar, Device Inspector, Signal History, Inspection Sessions, Sync Status, Settings
-- [ ] Avertizare optimizare baterie
-- [ ] Gestionare: Bluetooth oprit, permisiune revocată, repornire telefon, proces oprit
-- [ ] Teste unitare
-- [ ] APK debug în `dist/Builds/Android`
+- [x] Proiect Kotlin + Compose + Hilt + Room, Gradle wrapper în `dist/Android` (wrapper fixat pe checksum verificat)
+- [~] Permisiuni: Android 10–11 (locație) și 12+ (Nearby Devices) (manifest verificat cu aapt2; fluxul de cerere netestat pe telefon)
+- [~] Scanner BLE `BluetoothLeScanner` (doar ascultare, fără conectare) (compilează; netestat pe telefon)
+- [~] Colectare: RSSI, nume, adresă, manufacturer data, UUIDs, flags, TX power, payload (netestat pe telefon)
+- [~] Bază locală Room (compilează, schemă exportată; teste instrumentate lipsesc - necesită telefon/emulator)
+- [~] Mod A — scanare continuă cu foreground service și notificare (netestat pe telefon)
+- [~] Mod B — scanare în fundal (filtre, PendingIntent), raportare întreruperi (netestat pe telefon; filtrare doar pe nume exacte)
+- [~] Mod C — inspecție mobilă: alegere locație, note, salvare sesiune (netestat pe telefon)
+- [~] Ecrane: Scanner, Nearby Devices, Signal Radar, Device Inspector, Signal History, Inspection Sessions, Sync Status, Settings (toate 8 compilează; nerulate pe telefon)
+- [~] Avertizare optimizare baterie (netestat pe telefon)
+- [~] Gestionare: Bluetooth oprit, permisiune revocată, repornire telefon, proces oprit (implementat; netestat pe telefon)
+- [x] Teste unitare (28 de teste de logică pură: amprentă compatibilă cu Windows, agregare, prezență, sănătate scanner, RSSI)
+- [x] APK debug în `dist/Builds/Android` (FleetMonitor-0.2.0-debug.apk, 24,8 MB; permisiuni minime, fără INTERNET, fără SDK-uri de reclame/analitice)
 - [ ] 🔧 Test pe telefon real
 
 ## Faza 3 — Legătura Windows ↔ Android

@@ -86,3 +86,18 @@ This repository is indexed by Graphify: a code graph over its call, dependency, 
 
 Fall back to grep or file reads only for what the graph does not model: literal string or comment matches, non-indexed files, or reading a file you have already located. If no Graphify tools are listed, check the MCP server connection.
 <!-- graphify-rules-end -->
+
+## Android (`dist/Android/BluetoothFleetMonitor`)
+
+Kotlin + Compose + Hilt + Room, minSdk 29, targetSdk 35, package `com.unupunct.fleetmonitor`. Toolchain lives outside the repo: JDK 17 at `C:\Program Files\Microsoft\jdk-17*`, SDK at `%LOCALAPPDATA%\Android\Sdk` (set `JAVA_HOME` / `ANDROID_HOME`; `local.properties` is machine-specific, written with forward slashes, and gitignored). Use the Git Bash tool for Gradle:
+
+```bash
+cd dist/Android/BluetoothFleetMonitor
+./gradlew --no-daemon :app:testDebugUnitTest      # JVM tests (pure logic)
+./gradlew --no-daemon :app:assembleDebug          # APK in app/build/outputs/apk/debug
+```
+
+- Accepting SDK licenses is the user's decision. `yes | sdkmanager --licenses` works in Git Bash but accepts ALL pending licenses, so only do it with their OK and delete any license files you were not asked to accept.
+- The emulator does not work on this kind of machine; runtime checks need a real phone over ADB (`adb devices` must show `device`, not `unauthorized`).
+- Domain logic (`domain/`) is pure Kotlin and unit tested. `FingerprintTest` pins the same values as the C# `Fingerprint_matches_the_cross_platform_reference_vectors`; change one, change both.
+- Never add ad, analytics or telemetry libraries. Phase 2 deliberately has no `INTERNET` permission; Phase 3 adds it for the local sync only.

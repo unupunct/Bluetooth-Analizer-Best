@@ -1,4 +1,4 @@
-# Bluetooth Fleet Monitor — prepare a new development machine.
+# Bluetooth Fleet Monitor ? prepare a new development machine.
 # Run from anywhere:  powershell -ExecutionPolicy Bypass -File .\Scripts\Setup-DevEnvironment.ps1
 # Installs: .NET 10 SDK, Microsoft OpenJDK 17, Android command-line tools + SDK 35.
 # Safe to re-run; already-installed components are skipped.
@@ -38,13 +38,15 @@ if (-not (Test-Path $sdkManager)) {
 [Environment]::SetEnvironmentVariable('ANDROID_HOME', $sdk, 'User'); $env:ANDROID_HOME = $sdk
 Write-Host "[ok] ANDROID_HOME = $sdk"
 
-Write-Host '[..] Accepting Android SDK licenses'
-$yes = (1..30 | ForEach-Object { 'y' }) -join "`n"
-$yes | cmd /c "`"$sdkManager`" --licenses" | Out-Null
+# The Android SDK License Agreement must be accepted by a person. sdkmanager asks; type y to accept.
+Write-Host '[..] Android SDK licenses: read them and type y at each prompt to accept'
+cmd /c "`"$sdkManager`" --sdk_root=`"$sdk`" --licenses"
 Write-Host '[..] Installing Android SDK packages'
-cmd /c "`"$sdkManager`" platform-tools platforms;android-35 build-tools;35.0.0"
-if ($LASTEXITCODE -ne 0) { throw 'sdkmanager failed' }
-
+cmd /c "`"$sdkManager`" --sdk_root=`"$sdk`" platform-tools platforms;android-35 build-tools;35.0.0"
+# sdkmanager exits 0 even when it skipped packages because a license was not accepted, so check the result.
+foreach ($p in @('platform-tools\adb.exe', 'platforms\android-35', 'build-tools\35.0.0')) {
+    if (-not (Test-Path (Join-Path $sdk $p))) { throw "Android SDK package missing: $p (was the license accepted?)" }
+}
 # Android Gradle needs local.properties with the machine-specific SDK path (not portable, regenerated here).
 $androidProject = Join-Path $PSScriptRoot '..\Android\BluetoothFleetMonitor'
 if (Test-Path $androidProject) {

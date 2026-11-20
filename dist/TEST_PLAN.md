@@ -36,19 +36,41 @@ Run the exe produced by `dotnet build` (path: `Desktop/bin/Debug/net10.0-windows
 
 Neither touches the real database. `--verify-ui` never captures the screen; it renders WPF visuals into bitmaps.
 
-## 3. Hardware validation checklist (a person must tick these; none are ticked)
+## 3. Windows hardware validation checklist (ticked only where actually observed)
 
-- [ ] `--scan-test` passes (exit 0) with a real adapter on Windows 11
+- [x] `--scan-test` passes (exit 0) with a real adapter on Windows 11 (2026-11-20, TP-Link UB500 V3.6: 1,067 advertisements, 56 devices)
 - [ ] Same on Windows 10 (with the manufacturer driver installed)
-- [ ] Without the driver on Windows 10: app shows "running but hearing nothing" with the driver hint
+- [x] Without the vendor driver: app shows "running but hearing nothing" with the driver hint (observed on Windows 11 with the generic driver)
 - [ ] Unplug the adapter while scanning: state becomes Interrupted/AdapterUnavailable, a coverage gap is recorded; replug: scanning resumes by itself
 - [ ] Turn Bluetooth off then on in Windows settings: same behaviour
-- [ ] Lovense (`LVS-*`) devices appear and keep one identity across 30 minutes
+- [~] Lovense (`LVS-*`) devices appear (1 seen in a 30 s scan); one-identity-over-30-minutes not yet checked
 - [ ] A device with a rotating address keeps one identity (or is reported as new, never silently merged wrongly)
 - [ ] 30+ minutes continuous scan: UI stays responsive, no queue overflow events at normal load, memory stable
 - [ ] Kill the app mid-scan, restart: database opens, no corruption, backup exists after a migration
 - [ ] Add a second device with the same advertised name: it stays a separate inventory row
 
-## 4. Later phases
+## 4. Android (Phase 2)
 
-Android scanner tests (Phase 2), API authentication / idempotency / offline recovery tests (Phase 3), fault-detection tests with simulated data clearly marked (Phase 4), active-test safety tests (Phase 5), 18-point acceptance checklist from the specification (Phase 6).
+```powershell
+cd dist\Android\BluetoothFleetMonitor
+.\gradlew.bat :app:testDebugUnitTest      # 28 JVM tests of the pure logic (fingerprint contract, aggregation, presence, health, RSSI)
+.\gradlew.bat :app:assembleDebug          # builds app\build\outputs\apk\debug\app-debug.apk
+```
+
+Install on a phone (USB debugging on): `adb install -r <apk>`. Needs JDK 17 + Android SDK 35 (`dist\Scripts\Setup-DevEnvironment.ps1`).
+
+Phone checklist (a person ticks these; none are ticked):
+
+- [ ] First launch: permission prompt appears, grant works, Scanner tab turns green
+- [ ] Continuous mode: notification visible, scan continues with the screen off for 10+ minutes, devices appear in Nearby
+- [ ] Turn Bluetooth off during a scan: status Interrupted + a coverage gap; turn it on: scan resumes by itself
+- [ ] Revoke the permission while scanning: status explains it, no crash
+- [ ] Force-stop the app mid-scan, reopen: a gap is recorded and nothing claims coverage for the missing time
+- [ ] Inspection: start a session at "Studio 01", walk, end it; the session appears with device and window counts
+- [ ] Background mode with a name filter: results arrive with the app closed and the screen off
+- [ ] The same device on the phone and on Windows has the same fingerprint (compare the Fleet fingerprints once Phase 3 sync exists)
+- [ ] Battery: scan for an hour with defaults, note the drain
+
+## 5. Later phases
+
+API authentication / idempotency / offline recovery tests (Phase 3), fault-detection tests with simulated data clearly marked (Phase 4), active-test safety tests (Phase 5), 18-point acceptance checklist from the specification (Phase 6).

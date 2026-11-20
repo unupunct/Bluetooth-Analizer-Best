@@ -132,4 +132,15 @@ public class IdentityResolverTests
     {
         Assert.Null(IdentityResolver.ComputeFingerprint(Array.Empty<ManufacturerBlock>(), Array.Empty<Guid>()));
     }
+
+    // Cross-platform contract: the Android app must compute exactly these values (see Android FingerprintTest).
+    [Fact]
+    public void Fingerprint_matches_the_cross_platform_reference_vectors()
+    {
+        var withUuids = IdentityResolver.ComputeFingerprint(new[] { Mfr(0x004C, 1, 2, 3, 4, 9, 9) }, new[] { UuidB, UuidA });
+        Assert.Equal("24407DB34235BDBF1BA91E61BA0EAF7E", withUuids);
+
+        var mfrOnly = IdentityResolver.ComputeFingerprint(new[] { Mfr(0x004C, 1, 2, 3, 4) }, Array.Empty<Guid>());
+        Assert.Equal("60804AF1DAFC1C460C2EAEC11C21DC6D", mfrOnly);
+    }
 }
