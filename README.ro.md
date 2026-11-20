@@ -55,7 +55,7 @@ Totul rulează local. Fără cloud, reclame, telemetrie sau abonamente.
 | Fază | Stare |
 |---|---|
 | 0 — Inspecție mediu, unelte instalate | ✅ Gata |
-| 1 — Aplicația Windows de bază | 🔨 În lucru (scheletul soluției compilează) |
+| 1 — Aplicația Windows de bază | 🔨 Aproape gata: se compilează, 67 teste trec, UI verificat headless; scannerul BLE neverificat cu radio real (lipsește adaptorul pe acest PC) |
 | 2 — Scanner Android | ⏳ |
 | 3 — Sincronizare Windows ↔ Android, pairing QR | ⏳ |
 | 4 — Detecția defectelor, Worst Offenders | ⏳ |

@@ -2,7 +2,7 @@
 
 A local-only system for finding unreliable Bluetooth / BLE devices across a fleet of 170+ devices: a Windows command center that stores everything, plus a phone app that scans on the move and syncs to it over the local network. No cloud, no ads, no telemetry, no subscriptions.
 
-> **Status: early development.** Only the project skeleton exists. Nothing in the feature table below is implemented yet. See [`dist/TASKS.md`](dist/TASKS.md) for the real progress.
+> **Status: early development (Phase 1 of 6).** The Windows app builds, runs, and passes 67 automated tests, but its BLE scanner has not yet been verified with a real radio, and the Android app, sync, and fault detection do not exist yet. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
 
 ## Planned components
 
@@ -18,7 +18,7 @@ A local-only system for finding unreliable Bluetooth / BLE devices across a flee
 |---|---|
 | Passive BLE scanning | Windows and Android, listen-only by default |
 | Device identity | Never MAC-only (random addresses); no automatic merge on equal names |
-| Fault detection | Presence gaps, RSSI stability, multi-device correlation, health score 0-100 with confidence |
+| Fault detection (Phase 4) | Presence gaps, RSSI stability, multi-device correlation, health score 0-100 with confidence |
 | Worst Offenders | Devices ranked by evidence, with the reason shown |
 | Offline sync | Phone queues observations and uploads to Windows with original timestamps |
 | Active connection tests | Only on a device you select, after a warning |

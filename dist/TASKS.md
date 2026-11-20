@@ -1,6 +1,6 @@
 # Bluetooth Fleet Monitor — Taskuri
 
-Legendă: `[x]` gata și verificat · `[~]` în lucru · `[ ]` de făcut · 🔧 necesită test pe hardware real
+Legendă: `[x]` gata și verificat · `[~]` implementat, dar încă neverificat complet (vezi nota) · `[ ]` de făcut · 🔧 necesită test pe hardware real
 
 Un task e bifat doar după ce compilează, are teste unde se poate și a fost verificat. Un ecran care doar există nu înseamnă funcționalitate gata.
 
@@ -23,59 +23,59 @@ Un task e bifat doar după ce compilează, are teste unde se poate și a fost ve
 ## Faza 1 — Aplicația Windows de bază
 
 ### Documentație
-- [ ] `TECHNICAL_ARCHITECTURE.md`
-- [ ] `IMPLEMENTATION_STATUS.md`
-- [ ] `TEST_PLAN.md`
-- [ ] `KNOWN_LIMITATIONS.md`
+- [x] `TECHNICAL_ARCHITECTURE.md`
+- [x] `IMPLEMENTATION_STATUS.md`
+- [x] `TEST_PLAN.md`
+- [x] `KNOWN_LIMITATIONS.md`
 
 ### Structură
 - [x] Soluție .NET 10: Domain, Application, Database, Diagnostics, Bluetooth, UsbMonitoring, Desktop (WPF), Tests
 - [x] Pachete NuGet (EF Core 10.0.15 SQLite, CommunityToolkit.Mvvm, Serilog, LiveCharts2, Hosting)
 - [x] Scheletul compilează fără erori
-- [ ] Configurare JSON (`appsettings.json`), căi relative, date în `dist/`
+- [x] Configurare JSON (`appsettings.json`), căi relative, date în `data/` lângă exe
 
 ### Model de date și bază de date
-- [ ] Entități Domain: Device, DeviceIdentifier, Scanner, Observation, PresenceEvent, ConnectionTest, InspectionSession, FaultReport, UsbEvent, ApplicationEvent
-- [ ] `DbContext` EF Core + SQLite, indexuri (DeviceId, ScannerId, Timestamp, EventType, Location, Category)
-- [ ] Migrație inițială
-- [ ] Backup automat al bazei înainte de migrații
-- [ ] Verificare integritate SQLite la pornire
-- [ ] Teste: migrație pe bază goală, scriere/citire
+- [x] Entități Domain: Device, DeviceIdentifier, Scanner, Observation, PresenceEvent, ConnectionTest, InspectionSession, FaultReport, UsbEvent, ApplicationEvent
+- [x] `DbContext` EF Core + SQLite, indexuri (DeviceId, ScannerId, Timestamp, EventType, Location, Category)
+- [x] Migrație inițială
+- [x] Backup automat al bazei înainte de migrații (backup testat; declanșatorul din start-up nu are test unitar)
+- [x] Verificare integritate SQLite la pornire (calea de eșec netestată)
+- [x] Teste: migrație pe bază goală, scriere/citire
 
 ### Identificarea dispozitivelor
-- [ ] Amprentă dispozitiv: manufacturer data, service UUIDs, nume, adresă, tip adresă
-- [ ] Asociere adresă ↔ dispozitiv cu nivel de încredere
-- [ ] Gestionare adrese aleatorii (random / resolvable private)
-- [ ] Fără unire automată doar după nume identic
-- [ ] Unire / separare manuală cu jurnal de audit
-- [ ] Teste: schimbare adresă, nume duplicat, observații duplicate
+- [x] Amprentă dispozitiv: manufacturer data, service UUIDs, nume, adresă, tip adresă
+- [x] Asociere adresă ↔ dispozitiv cu nivel de încredere
+- [x] Gestionare adrese aleatorii (random / resolvable private)
+- [x] Fără unire automată doar după nume identic
+- [~] Unire / separare manuală cu jurnal de audit (unire: serviciu + UI; separare: doar serviciu, fără UI)
+- [x] Teste: schimbare adresă, nume duplicat, observații duplicate
 
 ### Scanner BLE Windows
-- [ ] Interfață `IBleScanner` (permite alte scannere mai târziu)
-- [ ] Implementare cu `BluetoothLEAdvertisementWatcher`, **Passive implicit**
-- [ ] Mod Active doar ca opțiune explicită în Settings
-- [ ] Stare reală adaptor: lipsă / oprit / pornit / eroare / întrerupt
-- [ ] Detectare scoatere adaptor și repornire automată a scanării
-- [ ] Înregistrare întreruperi scanner (acoperire scanner pentru diagnostic)
-- [ ] Coadă limitată de observații (Channel) + scriere în loturi în bază
-- [ ] Nicio observație pierdută fără înregistrare (overflow → ApplicationEvent)
+- [x] Interfață `IBleScanner` (permite alte scannere mai târziu)
+- [~] Implementare cu `BluetoothLEAdvertisementWatcher`, **Passive implicit** (compilează, logica de stare testată; radio real neverificat - lipsește adaptorul pe acest PC)
+- [~] Mod Active doar ca opțiune explicită în Settings (opțiunea există; efectul real neverificat)
+- [~] Stare reală adaptor: lipsă / oprit / pornit / eroare / întrerupt (cazul „lipsă” verificat real; restul doar în teste unitare)
+- [~] Detectare scoatere adaptor și repornire automată a scanării (implementat, netestat pe hardware)
+- [x] Înregistrare întreruperi scanner (acoperire scanner pentru diagnostic)
+- [x] Coadă limitată de observații (Channel) + scriere în loturi în bază
+- [x] Nicio observație pierdută fără înregistrare (overflow → ApplicationEvent)
 - [ ] 🔧 Verificare pe hardware: dispozitive reale apar în bază
 
 ### Interfață WPF (temă întunecată, MVVM)
-- [ ] Fereastră principală + navigare (cele 14 secțiuni, inactive marcate „în lucru”)
-- [ ] Dashboard: total, detectate acum, lipsă, instabile, stare scanner, ultima actualizare, feed evenimente live
-- [ ] Live Monitor: tabel live, căutare, filtre, sortare RSSI / last seen, pauză / reluare
-- [ ] Device Inventory: listă sortabilă, redenumire, cameră, workstation, note, categorie
-- [ ] Import / export CSV
-- [ ] Device History: grafic RSSI, perioade (15 min … 30 zile), evenimente
-- [ ] Event Log: evenimente aplicație și scanner, filtrare
-- [ ] Actualizări UI fără blocare (baza de date nu rulează pe firul UI)
+- [x] Fereastră principală + navigare (cele 14 secțiuni, inactive marcate cu faza)
+- [~] Dashboard: total, detectate acum, lipsă, instabile, stare scanner, ultima actualizare, feed evenimente live
+- [~] Live Monitor: tabel live, căutare, filtre, sortare RSSI / last seen, pauză / reluare
+- [~] Device Inventory: listă sortabilă, redenumire, cameră, workstation, note, categorie
+- [~] Import / export CSV (serviciu testat; dialogurile de fișier netestate)
+- [~] Device History: grafic RSSI, perioade (15 min … 30 zile), evenimente
+- [~] Event Log: evenimente aplicație și scanner, filtrare
+- [~] Actualizări UI fără blocare (baza de date nu rulează pe firul UI; reactivitate sub încărcare reală nemăsurată)
 
 ### Logging și finalizare fază
-- [ ] Serilog în `dist/.../Logs`, crash logging
-- [ ] Toate testele automate trec
+- [x] Serilog în `data/Logs`, crash logging
+- [x] Toate testele automate trec (67/67)
 - [ ] 🔧 Test pe hardware: scanare continuă 30+ min, UI responsiv, `LVS-*` apar
-- [ ] Actualizare `IMPLEMENTATION_STATUS.md`
+- [x] Actualizare `IMPLEMENTATION_STATUS.md`
 
 ## Faza 2 — Aplicația Android
 

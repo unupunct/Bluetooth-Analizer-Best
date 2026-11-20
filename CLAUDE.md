@@ -26,6 +26,15 @@ dotnet test --filter "FullyQualifiedName~IdentityResolver"   # single test class
 dotnet run --project Desktop                   # launch WPF app
 ```
 
+Headless self-tests of the built exe (`Desktop/bin/Debug/net10.0-windows10.0.19041.0/BluetoothFleetMonitor.Desktop.exe`; details in `dist/TEST_PLAN.md`). Use these instead of screenshotting the desktop:
+
+```powershell
+.\BluetoothFleetMonitor.Desktop.exe --verify-ui --out <dir> --data <tmpdir>      # renders all pages off-screen from labelled TEST data, counts binding errors, exit 0 = pass
+.\BluetoothFleetMonitor.Desktop.exe --scan-test --seconds 20 --out <file> --data <tmpdir>   # real Passive scan into a throw-away DB; exit 0 data, 2 heard nothing, 3 nothing stored
+```
+
+EF migrations use the repo-local tool: `dotnet ef migrations add <Name> --project Database --startup-project Database --output-dir Migrations` (from `dist/Windows`, after `dotnet tool restore`).
+
 In the Bash tool, `dotnet` may not be on PATH in a fresh shell. Prefix with `export PATH="/c/Program Files/dotnet:$PATH"`.
 
 ## Windows architecture (`dist/Windows`)
