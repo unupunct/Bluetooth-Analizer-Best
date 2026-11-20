@@ -102,7 +102,7 @@ public class PipelineTests
 
         var all = store.Batches.SelectMany(b => b).ToList();
         Assert.Equal(2, all.Select(o => o.DeviceId).Distinct().Count());
-        Assert.Single(all.Where(o => o.IsNewDevice && o.Ad.Address == 0x111111111111));
+        Assert.Single(all, o => o.IsNewDevice && o.Ad.Address == 0x111111111111);
     }
 
     [Fact]
