@@ -29,6 +29,7 @@ LicenseFile=..\..\LICENSE
 Compression=lzma2/fast
 SolidCompression=yes
 WizardStyle=modern
+SetupIconFile=..\Windows\Desktop\Assets/app.ico
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 MinVersion=10.0.17763
