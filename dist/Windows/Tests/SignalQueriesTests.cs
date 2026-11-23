@@ -110,6 +110,18 @@ public sealed class SignalQueriesTests : IDisposable
     }
 
     [Fact]
+    public async Task A_phone_scanner_has_no_silence_list_because_the_PC_coverage_says_nothing_about_a_phone()
+    {
+        var (_, q, _) = await SeedAsync();
+        var phone = await q.LoadAsync(_deviceId, new TimeRange(T0, T0.AddHours(6)), _scannerB);
+        Assert.NotEmpty(phone.Buckets);
+        Assert.Empty(phone.Silences);                                    // the phone heard 5 windows then nothing: that is not a device silence
+        var choices = await q.ScannersAsync(_deviceId, new TimeRange(T0, T0.AddHours(6)));
+        Assert.Equal("Android", choices.Single(c => c.Id == _scannerB).Platform);
+        Assert.Equal("Windows", choices.Single(c => c.Id == _scannerA).Platform);
+    }
+
+    [Fact]
     public async Task A_scanner_that_never_heard_the_device_gives_an_empty_input()
     {
         var (_, q, _) = await SeedAsync();

@@ -15,7 +15,8 @@ public sealed record DistributionBin(int FromDbm, int ToDbm, int Count);
 public sealed record StrengthShare(string Label, double Fraction);
 public sealed record IntervalBin(string Label, int Count);
 public sealed record IntervalStats(double MedianSeconds, double P95Seconds, double MaxSeconds, IReadOnlyList<IntervalBin> Bins);
-public sealed record SilenceDetail(TimeRange Range, double? LevelBeforeDbm, double? LevelAfterDbm);
+/// <param name="SharedWithOthers">True when many other devices went quiet at the same time (environment or scanner), so the silence says little about this device.</param>
+public sealed record SilenceDetail(TimeRange Range, double? LevelBeforeDbm, double? LevelAfterDbm, bool SharedWithOthers = false);
 public sealed record RecoveryEvent(DateTime DropStartUtc, double DropDb, TimeSpan? RecoveredAfter);
 
 public sealed class SignalAnalysis
@@ -49,7 +50,7 @@ public static class SignalAnalyzer
 
     public static int DefaultMovingAverage(int bucketCount) => Math.Max(3, (int)Math.Round(bucketCount * 0.05));
 
-    public static SignalAnalysis Analyze(SignalInput input, int movingAverageBuckets = 0)
+    public static SignalAnalysis Analyze(SignalInput input, int movingAverageBuckets = 0, IReadOnlyList<TimeRange>? sharedSilences = null)
     {
         var b = input.Buckets.Where(x => x.Count > 0).OrderBy(x => x.StartUtc).ToList();
         var intervals = AnalyzeIntervals(input);
@@ -73,9 +74,21 @@ public static class SignalAnalyzer
         {
             Sufficient = true, Stats = stats, MovingAverage = ma, Distribution = bins, Strength = shares, Intervals = intervals,
             Silences = input.Silences.Select(s => new SilenceDetail(s,
-                b.LastOrDefault(x => x.StartUtc < s.StartUtc)?.Average, b.FirstOrDefault(x => x.StartUtc >= s.EndUtc)?.Average)).ToList(),
+                b.LastOrDefault(x => x.StartUtc < s.StartUtc)?.Average, b.FirstOrDefault(x => x.StartUtc >= s.EndUtc)?.Average,
+                IsShared(s, sharedSilences))).ToList(),
             Recoveries = FindRecoveries(b),
         };
+    }
+
+    private static bool IsShared(TimeRange silence, IReadOnlyList<TimeRange>? shared)
+    {
+        if (shared is null || silence.Length <= TimeSpan.Zero) return false;
+        foreach (var r in shared)
+        {
+            var from = r.StartUtc > silence.StartUtc ? r.StartUtc : silence.StartUtc; var to = r.EndUtc < silence.EndUtc ? r.EndUtc : silence.EndUtc;
+            if (to > from && (to - from) >= silence.Length * 0.5) return true;
+        }
+        return false;
     }
 
     private static double WeightedMedian(List<SignalBucket> b, double total)

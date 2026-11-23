@@ -44,6 +44,8 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
     private Guid? _deviceId;
     private string? _lookupQuery;
     private bool _loading;
+    private int _ticket;
+    private int _inFlight;
 
     public static readonly string[] Windows = { "Last hour", "Last 24 hours", "Last 7 days", "Last 30 days" };
 
@@ -98,35 +100,46 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
     [RelayCommand]
     public async Task RefreshAsync()
     {
-        if (_deviceId is not { } id || Busy || IsDemo) return;
-        Busy = true;
+        if (_deviceId is not { } id || IsDemo) return;
+        // Every refresh takes a ticket. A slower, older load that finishes after a newer request must not overwrite the page,
+        // so only the newest ticket may show its result; the others are simply dropped.
+        var ticket = Interlocked.Increment(ref _ticket);
+        Interlocked.Increment(ref _inFlight); Busy = true;
+        var span = Span; var window = Window;
         try
         {
-            var to = DateTime.UtcNow; var range = new TimeRange(to - Span, to);
+            var to = DateTime.UtcNow; var range = new TimeRange(to - span, to);
             var wantedScanner = SelectedScanner?.Id;
             var profileInput = await Task.Run(() => _signal.LoadProfileAsync(id));
+            if (ticket != Volatile.Read(ref _ticket)) return;
             if (profileInput is null) { HasDevice = false; Message = "That device no longer exists in the database."; return; }
             var scanners = await Task.Run(() => _signal.ScannersAsync(id, range));
+            // A scanner picked earlier may not have heard the device in this window: then show all scanners, and say so in the picker too.
+            if (wantedScanner is { } w && scanners.All(s => s.Id != w)) wantedScanner = null;
             var input = await Task.Run(() => _signal.LoadAsync(id, range, wantedScanner));
-            var analysis = SignalAnalyzer.Analyze(input);
             var diag = await Task.Run(() => _faults.DiagnoseAsync(id, range, _faultSettings.Settings));
+            var analysis = await Task.Run(() => SignalAnalyzer.Analyze(input, 0, diag?.EnvironmentalRanges));
+            if (ticket != Volatile.Read(ref _ticket)) return;
             _loading = true;
-            Apply(input, analysis, DeviceProfileBuilder.Build(profileInput), diag, scanners, wantedScanner);
+            Apply(input, analysis, DeviceProfileBuilder.Build(profileInput), diag, scanners, wantedScanner, span);
             _loading = false;
         }
-        catch (Exception ex) { Message = "Could not analyse this device: " + ex.Message; }
-        finally { _loading = false; Busy = false; }
+        catch (Exception ex)
+        {
+            if (ticket == Volatile.Read(ref _ticket)) { Message = "Could not analyse this device: " + ex.Message; HasDevice = false; }   // never leave another device's numbers on screen
+        }
+        finally { _loading = false; if (Interlocked.Decrement(ref _inFlight) == 0) Busy = false; }
     }
 
     /// <summary>For the labelled demo screenshots: shows an analysis computed from fictional data, with a DEMO DATA label.</summary>
     public void LoadDemo(SignalInput input, SignalAnalysis analysis, DeviceProfile profile, DeviceDiagnosis diag, IReadOnlyList<ScannerChoice> scanners)
     {
         IsDemo = true; _loading = true;
-        Apply(input, analysis, profile, diag, scanners, null);
+        Apply(input, analysis, profile, diag, scanners, null, TimeSpan.FromHours(24));
         _loading = false;
     }
 
-    private void Apply(SignalInput input, SignalAnalysis a, DeviceProfile profile, DeviceDiagnosis? diag, IReadOnlyList<ScannerChoice> scanners, Guid? scannerId)
+    private void Apply(SignalInput input, SignalAnalysis a, DeviceProfile profile, DeviceDiagnosis? diag, IReadOnlyList<ScannerChoice> scanners, Guid? scannerId, TimeSpan span)
     {
         HasDevice = true; Title = profile.Title;
         _lookupQuery = profile.LookupQuery; CanLookUp = _lookupQuery is not null;
@@ -147,7 +160,8 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
             if (diag.Findings.Count == 0) Findings.Add("No faults found in this window.");
         }
 
-        Message = a.Sufficient ? (scannerId is null ? "" : "Showing only what the selected scanner heard.") : a.Note ?? "";
+        var chosen = scanners.FirstOrDefault(s => s.Id == scannerId && scannerId is not null);
+        Message = a.Sufficient ? (scannerId is null ? "" : "Showing only what the selected scanner heard." + (chosen?.Platform is { } pl && pl != "Windows" ? " Silent periods are not listed for a phone, because only the PC records when it was listening." : "")) : a.Note ?? "";
         StatLines.Clear(); Silences.Clear(); Recoveries.Clear();
         SignalSections = Array.Empty<RectangularSection>(); SignalSeries = Array.Empty<ISeries>(); DistributionSeries = Array.Empty<ISeries>(); IntervalSeries = Array.Empty<ISeries>();
         IntervalNote = "";
@@ -180,7 +194,7 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
             Line("Signal (average per bucket)", avg, new SKColor(0x4D, 0xA3, 0xFF, 0xB0), 1.5f),
             Line("Moving average", ma, Amber, 2.5f),
         };
-        var fmt = Span <= TimeSpan.FromHours(36) ? "HH:mm" : "dd MMM HH:mm";
+        var fmt = span <= TimeSpan.FromHours(36) ? "HH:mm" : "dd MMM HH:mm";
         SignalXAxes = new ICartesianAxis[]
         {
             new DateTimeAxis(TimeSpan.FromSeconds(bucketSeconds), d => d.ToString(fmt))
@@ -197,7 +211,8 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
             Silences.Add(new SilenceRow
             {
                 When = s.Range.StartUtc.ToLocalTime().ToString("dd MMM HH:mm"), Length = Fmt(s.Range.Length.TotalSeconds),
-                Levels = (s.LevelBeforeDbm is { } b ? $"{b:0} dBm before" : "no signal before") + ", " + (s.LevelAfterDbm is { } af ? $"{af:0} dBm after" : "no signal after"),
+                Levels = (s.LevelBeforeDbm is { } b ? $"{b:0} dBm before" : "no signal before") + ", " + (s.LevelAfterDbm is { } af ? $"{af:0} dBm after" : "no signal after")
+                    + (s.SharedWithOthers ? "  |  shared with other devices: environment or scanner, not charged to this device" : ""),
             });
         foreach (var r in a.Recoveries)
             Recoveries.Add(new RecoveryRow { When = r.DropStartUtc.ToLocalTime().ToString("dd MMM HH:mm"), Drop = $"fell {r.DropDb:0} dB", Recovered = r.RecoveredAfter is { } t ? $"back to normal after {Fmt(t.TotalSeconds)}" : "had not recovered by the end of the window" });

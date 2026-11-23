@@ -70,6 +70,16 @@ public class FaultAnalyzerTests
     }
 
     [Fact]
+    public void Shared_silences_are_exposed_on_the_diagnosis_so_other_screens_can_flag_them()
+    {
+        var shared = Gap(300, 20);
+        var res = FaultAnalyzer.Analyze(Enumerable.Range(0, 6).Select(i => Dev($"d{i}", new[] { shared })).ToList(), Covered, Day, S);
+        Assert.All(res.Devices, d => Assert.Single(d.EnvironmentalRanges));
+        var solo = FaultAnalyzer.Analyze(new[] { Dev("solo", new[] { Gap(300, 20) }) }, Covered, Day, S).Devices.Single();
+        Assert.Empty(solo.EnvironmentalRanges);
+    }
+
+    [Fact]
     public void One_device_silent_while_the_others_are_fine_is_that_devices_fault()
     {
         var devices = Enumerable.Range(0, 6).Select(i => Dev($"d{i}", i == 0 ? new[] { Gap(300, 20), Gap(700, 25), Gap(1100, 30) } : null)).ToList();

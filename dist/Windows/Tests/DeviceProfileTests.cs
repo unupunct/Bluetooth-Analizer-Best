@@ -70,6 +70,12 @@ public sealed class DeviceProfileTests : IDisposable
         Assert.Equal("Logitech bluetooth", LookupLink.Query("Logitech", "Device a1b2c3d4"));
         Assert.Equal("Logitech bluetooth", LookupLink.Query("Logitech", "  "));
         Assert.Equal("Logitech bluetooth", LookupLink.Query("Logitech", "AA:BB:CC:DD:EE:FF"));
+        Assert.Equal("Logitech Sensor bluetooth", LookupLink.Query("Logitech", "Sensor (AA:BB:CC:DD:EE:FF)"));
+        Assert.Equal("Logitech BT bluetooth", LookupLink.Query("Logitech", "BT_AABBCCDDEEFF"));
+        Assert.Equal("Logitech Mi bluetooth", LookupLink.Query("Logitech", "Mi-AA:BB:CC:DD:EE:FF"));
+        Assert.Equal("Logitech ATC bluetooth", LookupLink.Query("Logitech", "ATC_A4C138"));            // partial address advertised in the name
+        Assert.Equal("Logitech Govee_H5075 bluetooth", LookupLink.Query("Logitech", "Govee_H5075_1A2B"));
+        Assert.Equal("Logitech Sensor Pro bluetooth", LookupLink.Query("Logitech", "Sensor Pro	AA.BB.CC.DD.EE.FF"));   // non-breaking space and tab separate words too
         Assert.Null(LookupLink.Query(null, null));
         Assert.Null(LookupLink.Query("Company 0xFFFF", "Device a1b2c3d4"));
         Assert.DoesNotMatch(new Regex("[0-9A-Fa-f]{12}"), LookupLink.Query("Logitech", "Keys AABBCCDDEEFF") ?? "");
@@ -88,7 +94,7 @@ public sealed class DeviceProfileTests : IDisposable
     [Fact]
     public async Task LoadProfileAsync_reads_the_device_and_its_per_source_counts()
     {
-        var f = new Factory(_conn); var t0 = new DateTime(2026, 11, 20, 8, 0, 0, DateTimeKind.Utc); var id = Guid.NewGuid(); var sc = Guid.NewGuid();
+        var f = new Factory(_conn); var t0 = DateTime.UtcNow.AddHours(-3); var id = Guid.NewGuid(); var sc = Guid.NewGuid();
         await using (var db = f.CreateDbContext())
         {
             await db.Database.MigrateAsync();
@@ -97,13 +103,15 @@ public sealed class DeviceProfileTests : IDisposable
             db.Observations.AddRange(
                 new Observation { Id = Guid.NewGuid(), DeviceId = id, ScannerId = sc, TimestampUtc = t0, ProcessedAtUtc = t0, Rssi = -60, Source = "Windows", AddressKind = AddressKind.Public, ManufacturerData = "0059:0102" },
                 new Observation { Id = Guid.NewGuid(), DeviceId = id, ScannerId = sc, TimestampUtc = t0.AddMinutes(1), ProcessedAtUtc = t0, Rssi = -61, Source = "Windows", AddressKind = AddressKind.Public, ManufacturerData = "0059:0102", ServiceUuids = "0000180f-0000-1000-8000-00805f9b34fb" },
-                new Observation { Id = Guid.NewGuid(), DeviceId = id, ScannerId = sc, TimestampUtc = t0.AddMinutes(2), ProcessedAtUtc = t0, Rssi = -70, Source = "Android", AddressKind = AddressKind.Unknown });
+                new Observation { Id = Guid.NewGuid(), DeviceId = id, ScannerId = sc, TimestampUtc = t0.AddMinutes(2), ProcessedAtUtc = t0, Rssi = -70, Source = "Android", AddressKind = AddressKind.Unknown },
+                // far older than the profile horizon: must not be counted and its manufacturer data must not be used
+                new Observation { Id = Guid.NewGuid(), DeviceId = id, ScannerId = sc, TimestampUtc = DateTime.UtcNow.AddDays(-90), ProcessedAtUtc = t0, Rssi = -50, Source = "Windows", AddressKind = AddressKind.Public, ManufacturerData = "004C:FFFF" });
             await db.SaveChangesAsync();
         }
         var q = new SignalQueries(f, new FaultQueries(f));
         var p = await q.LoadProfileAsync(id);
         Assert.NotNull(p);
-        Assert.Equal(2, p!.ObservationsBySource["Windows"]);
+        Assert.Equal(2, p!.ObservationsBySource["Windows"]);      // the 90-day-old row is outside the 30-day profile horizon
         Assert.Equal(1, p.ObservationsBySource["Android"]);
         Assert.True(p.HasStableAddress);
         Assert.Equal("0059:0102", p.ManufacturerData);                   // newest observation that carries manufacturer data

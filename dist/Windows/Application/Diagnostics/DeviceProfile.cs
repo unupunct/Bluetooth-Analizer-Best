@@ -80,7 +80,10 @@ public static class DeviceProfileBuilder
 public static class LookupLink
 {
     private static readonly Regex GeneratedName = new(@"^Device [0-9a-fA-F]{8}$");
-    private static readonly Regex AddressLike = new(@"^([0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$|^[0-9A-Fa-f]{12}$");
+    // A Bluetooth address (or a long part of one) can hide inside a name: "Mi-AA:BB:CC:DD:EE:FF", "BT_AABBCCDDEEFF", "ATC_A4C138".
+    private static readonly Regex AddressAnywhere = new(@"(?:[0-9A-Fa-f]{2}[:\-_.]?){5}[0-9A-Fa-f]{2}");
+    private static readonly Regex HexTail = new(@"[_\-:.][0-9A-Fa-f]{4,6}$");
+    private static readonly Regex AllWhitespace = new(@"\s+");
 
     public static string? Query(string? maker, string? advertisedName)
     {
@@ -88,7 +91,14 @@ public static class LookupLink
         string? name = null;
         if (!string.IsNullOrWhiteSpace(advertisedName) && !GeneratedName.IsMatch(advertisedName.Trim()))
         {
-            var words = advertisedName.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(w => !AddressLike.IsMatch(w)).ToList();
+            var words = new List<string>();
+            foreach (var raw in AllWhitespace.Split(advertisedName.Trim()))
+            {
+                var w = AddressAnywhere.Replace(raw, " ").Trim();
+                w = HexTail.Replace(w, "");
+                w = w.Trim(' ', '_', '-', ':', '.', '(', ')', '[', ']');
+                if (w.Length > 0 && w.Any(char.IsLetterOrDigit)) words.Add(w);
+            }
             if (words.Count > 0) name = string.Join(' ', words);
         }
         if (knownMaker is null && name is null) return null;

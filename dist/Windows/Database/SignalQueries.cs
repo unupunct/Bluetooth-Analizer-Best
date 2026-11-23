@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 namespace BluetoothFleetMonitor.Database;
 
 /// <summary>One entry of the scanner picker; <see cref="Id"/> null means all scanners.</summary>
-public sealed record ScannerChoice(Guid? Id, string Name, long Observations);
+public sealed record ScannerChoice(Guid? Id, string Name, long Observations, string? Platform = null);
 
 /// <summary>
 /// Loads what the Signal Analysis page needs for one device. All aggregation (buckets, interval histogram, gaps) is done in SQL, so a
@@ -69,7 +69,10 @@ public sealed class SignalQueries
         if (edge.Last is { } last && (to - Utc(last)).TotalSeconds > MinGapSeconds) silences.Add(new TimeRange(Utc(last), to));
         var firstSeen = await db.Devices.AsNoTracking().Where(d => d.Id == deviceId).Select(d => d.FirstSeenUtc).FirstOrDefaultAsync(ct);
         var coverage = await _faults.LoadCoverageAsync(window, ct);
-        var cut = FaultAnalyzer.CutToCoverage(silences.OrderBy(s => s.StartUtc).ToList(), coverage, window, firstSeen, MinGapSeconds);
+        // Coverage is the PC radio's Running state. It says nothing about when a phone was listening (a phone samples in windows and may be off),
+        // so for a phone scanner no silence list is produced rather than a wrong one.
+        var phone = scannerId is { } chosen && await db.Scanners.AsNoTracking().Where(s => s.Id == chosen).Select(s => s.Platform).FirstOrDefaultAsync(ct) is { } p && p != "Windows";
+        var cut = phone ? new List<TimeRange>() : FaultAnalyzer.CutToCoverage(silences.OrderBy(s => s.StartUtc).ToList(), coverage, window, firstSeen, MinGapSeconds).ToList();
 
         return new SignalInput(window, bucketSeconds, buckets, counts, max.Gap ?? 0, cut);
     }
@@ -80,9 +83,9 @@ public sealed class SignalQueries
         var from = window.StartUtc; var to = window.EndUtc;
         var rows = await db.Database.SqlQuery<ScannerRow>($@"
             SELECT ScannerId, COUNT(*) AS Cnt FROM Observations WHERE DeviceId = {deviceId} AND TimestampUtc >= {from} AND TimestampUtc <= {to} GROUP BY ScannerId").ToListAsync(ct);
-        var names = await db.Scanners.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s.Name, ct);
+        var names = await db.Scanners.AsNoTracking().ToDictionaryAsync(s => s.Id, s => s, ct);
         var list = new List<ScannerChoice> { new(null, "All scanners", rows.Sum(r => r.Cnt)) };
-        list.AddRange(rows.OrderByDescending(r => r.Cnt).Select(r => new ScannerChoice(r.ScannerId, names.TryGetValue(r.ScannerId, out var n) ? n : r.ScannerId.ToString("N")[..8], r.Cnt)));
+        list.AddRange(rows.OrderByDescending(r => r.Cnt).Select(r => new ScannerChoice(r.ScannerId, names.TryGetValue(r.ScannerId, out var n) ? n.Name : r.ScannerId.ToString("N")[..8], r.Cnt, names.TryGetValue(r.ScannerId, out var n2) ? n2.Platform : null)));
         return list;
     }
 
@@ -91,13 +94,14 @@ public sealed class SignalQueries
     /// <summary>The facts for the "what is this device" panel; null when there is no such device.</summary>
     public async Task<DeviceProfileInput?> LoadProfileAsync(Guid deviceId, CancellationToken ct = default)
     {
+        var horizon = DateTime.UtcNow.AddDays(-30);   // bounded: the panel describes recent behaviour, and an unbounded scan of months of 1 Hz data is slow
         await using var db = await _factory.CreateDbContextAsync(ct);
         var d = await db.Devices.AsNoTracking().Include(x => x.Identifiers).FirstOrDefaultAsync(x => x.Id == deviceId, ct);
         if (d is null) return null;
-        var newest = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId).OrderByDescending(o => o.TimestampUtc).Select(o => new { o.AddressKind }).FirstOrDefaultAsync(ct);
-        var mfr = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.ManufacturerData != null).OrderByDescending(o => o.TimestampUtc).Select(o => o.ManufacturerData).FirstOrDefaultAsync(ct);
-        var svc = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.ServiceUuids != null).OrderByDescending(o => o.TimestampUtc).Select(o => o.ServiceUuids).FirstOrDefaultAsync(ct);
-        var bySource = (await db.Database.SqlQuery<SourceRow>($"SELECT Source, COUNT(*) AS Cnt FROM Observations WHERE DeviceId = {deviceId} GROUP BY Source").ToListAsync(ct))
+        var newest = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.TimestampUtc >= horizon).OrderByDescending(o => o.TimestampUtc).Select(o => new { o.AddressKind }).FirstOrDefaultAsync(ct);
+        var mfr = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.TimestampUtc >= horizon && o.ManufacturerData != null).OrderByDescending(o => o.TimestampUtc).Select(o => o.ManufacturerData).FirstOrDefaultAsync(ct);
+        var svc = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.TimestampUtc >= horizon && o.ServiceUuids != null).OrderByDescending(o => o.TimestampUtc).Select(o => o.ServiceUuids).FirstOrDefaultAsync(ct);
+        var bySource = (await db.Database.SqlQuery<SourceRow>($"SELECT Source, COUNT(*) AS Cnt FROM Observations WHERE DeviceId = {deviceId} AND TimestampUtc >= {horizon} GROUP BY Source").ToListAsync(ct))
             .ToDictionary(r => r.Source, r => r.Cnt);
         return new DeviceProfileInput(d.DisplayName, d.AdvertisedName, d.Category, d.AssignedRoom, d.AssignedWorkstation, mfr, svc,
             newest?.AddressKind ?? Domain.AddressKind.Unknown,

@@ -122,6 +122,18 @@ public class SignalAnalyzerTests
     }
 
     [Fact]
+    public void A_silence_that_overlaps_a_shared_outage_is_flagged_as_shared()
+    {
+        var buckets = Repeat(-60, 30).Concat(Repeat(-60, 30, 40)).ToList();
+        var mine = new TimeRange(T0.AddMinutes(30), T0.AddMinutes(40)); var other = new TimeRange(T0.AddMinutes(5), T0.AddMinutes(8));
+        var shared = new[] { new TimeRange(T0.AddMinutes(29), T0.AddMinutes(41)) };
+        var a = SignalAnalyzer.Analyze(Input(buckets, silences: new[] { other, mine }), 0, shared);
+        Assert.False(a.Silences[0].SharedWithOthers);
+        Assert.True(a.Silences[1].SharedWithOthers);
+        Assert.False(SignalAnalyzer.Analyze(Input(buckets, silences: new[] { mine })).Silences[0].SharedWithOthers);   // no shared info given: not flagged
+    }
+
+    [Fact]
     public void Recovery_is_measured_from_a_ten_dB_drop_until_within_three_dB_of_baseline()
     {
         var buckets = Repeat(-60, 70).Concat(Repeat(-75, 5, 70)).Concat(Repeat(-61, 10, 75)).ToList();

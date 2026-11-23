@@ -84,6 +84,8 @@ public sealed class DeviceDiagnosis
     public double? TrendDb { get; init; }
     public double? TestFailureRate { get; init; }
     public int EnvironmentalSilences { get; init; }
+    /// <summary>The silences of this device that were shared with many other devices (environment or scanner), so not charged to it.</summary>
+    public IReadOnlyList<TimeRange> EnvironmentalRanges { get; init; } = Array.Empty<TimeRange>();
     public IReadOnlyList<ScoreComponent> Components { get; init; } = Array.Empty<ScoreComponent>();
     public IReadOnlyList<Finding> Findings { get; init; } = Array.Empty<Finding>();
     public string Recommendation { get; init; } = "";
@@ -158,10 +160,10 @@ public static class FaultAnalyzer
 
     private static DeviceDiagnosis AnalyzeDevice(DeviceEvidence d, List<TimeRange> silences, List<TimeRange> env, double coveredHours, TimeRange window, AnalyzerSettings s)
     {
-        var own = new List<TimeRange>(); var envOnly = 0;
+        var own = new List<TimeRange>(); var envOnly = 0; var envSilences = new List<TimeRange>();
         foreach (var sil in silences)
         {
-            if (env.Any(e => e.Overlaps(sil) && Overlap(e, sil) >= 0.5 * sil.Length.TotalSeconds)) envOnly++;
+            if (env.Any(e => e.Overlaps(sil) && Overlap(e, sil) >= 0.5 * sil.Length.TotalSeconds)) { envOnly++; envSilences.Add(sil); }
             else own.Add(sil);
         }
         var days = Math.Max(coveredHours / 24.0, 1.0 / 24);
@@ -258,7 +260,7 @@ public static class FaultAnalyzer
         {
             DeviceId = d.DeviceId, Name = d.Name, Category = d.Category, Room = d.Room, Workstation = d.Workstation,
             Health = health, Band = band, Confidence = conf, Interruptions = interruptions, Flaps = flaps, MissingMinutes = missingMin,
-            SignalSpreadDb = spread, TrendDb = trend, TestFailureRate = testRate, EnvironmentalSilences = envOnly,
+            SignalSpreadDb = spread, TrendDb = trend, TestFailureRate = testRate, EnvironmentalSilences = envOnly, EnvironmentalRanges = envSilences,
             Components = comps, Findings = findings.OrderByDescending(f => f.Severity).ToList(), Recommendation = rec,
         };
     }
