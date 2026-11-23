@@ -2,13 +2,17 @@
 
 A local-only system for finding unreliable Bluetooth / BLE devices across a fleet of 170+ devices: a Windows command center that stores everything, plus a phone app that scans on the move and syncs to it over the local network. No cloud, no ads, no telemetry, no subscriptions.
 
-> **Status: early development (Phase 2 of 6, pre-release v0.2.0).** The Windows app builds, runs, and passes 67 automated tests, and its passive BLE scanner has been verified with a real radio (1,067 advertisements from 56 devices in 30 s). The Android app builds, passes its unit tests and has scanned on a real phone (Galaxy A52s, Android 14), though not every feature is verified yet; sync and fault detection do not exist yet. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
+> **Status: early development (Phase 2 of 6, pre-release v0.2.1).** The Windows app builds, runs, and passes 88 automated tests, and its passive BLE scanner has been verified with a real radio (1,067 advertisements from 56 devices in 30 s). The Android app builds, passes its unit tests and has scanned on a real phone (Galaxy A52s, Android 14), though not every feature is verified yet; phone-to-Windows sync does not exist yet. The Windows Fault Detector (health score, Worst Offenders) is built and unit-tested, but only exercised on fictional demo data and short real scans so far: its thresholds are engineering starting points, not validated failure rates. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
 
 ## Screenshots
 
 All screenshots use **fictional demo devices** (Windows: `--demo-shots`; Android: Settings > Demo data) and are labelled "DEMO DATA" in the app. They are not real measurements.
 
 ![Windows dashboard](docs/screenshots/windows-dashboard.png)
+
+Fault Detector, ranking devices by evidence and explaining every score:
+
+![Fault Detector](docs/screenshots/windows-fault-detector.png)
 
 | Live monitor | Inventory |
 |---|---|
@@ -42,7 +46,7 @@ Pre-release builds are on the [Releases page](https://github.com/unupunct/Blueto
 |---|---|
 | Passive BLE scanning | Windows and Android, listen-only by default |
 | Device identity | Never MAC-only (random addresses); no automatic merge on equal names |
-| Fault detection (Phase 4) | Presence gaps, RSSI stability, multi-device correlation, health score 0-100 with confidence |
+| Fault detection (Phase 4, Windows done) | Presence gaps, RSSI stability, shared-outage correlation, explainable health score 0-100 with separate confidence, adjustable weights |
 | Worst Offenders | Devices ranked by evidence, with the reason shown |
 | Offline sync | Phone queues observations and uploads to Windows with original timestamps |
 | Active connection tests | Only on a device you select, after a warning |

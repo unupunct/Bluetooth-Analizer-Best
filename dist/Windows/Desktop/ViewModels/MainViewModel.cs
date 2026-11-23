@@ -26,7 +26,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _statusBar = "";
 
     public MainViewModel(DashboardViewModel dashboard, LiveMonitorViewModel live, InventoryViewModel inventory,
-        HistoryViewModel history, EventLogViewModel events, ScannerViewModel scanner, SettingsViewModel settings,
+        HistoryViewModel history, FaultsViewModel faults, EventLogViewModel events, ScannerViewModel scanner, SettingsViewModel settings,
         SelectionService selection, ScanController scan, AppPaths paths)
     {
         _scan = scan;
@@ -40,7 +40,7 @@ public sealed partial class MainViewModel : ObservableObject
         Add("dashboard", "Dashboard", dashboard);
         Add("live", "Live Monitor", live);
         Add("inventory", "Device Inventory", inventory);
-        Todo("faults", "Fault Detector", "Phase 4", "Presence-gap, RSSI-stability and correlation analysis with an explainable health score and the Worst Offenders ranking.");
+        Add("faults", "Fault Detector", faults);
         Add("history", "Device History", history);
         Todo("analysis", "Signal Analysis", "Phase 4", "Moving averages, volatility, advertisement intervals and recovery times.");
         Todo("survey", "Signal Survey", "Phase 3", "Walk-around inspection results uploaded from the Android scanner.");
@@ -63,7 +63,11 @@ public sealed partial class MainViewModel : ObservableObject
 
     partial void OnSelectedChanged(NavItem? value)
     {
-        if (value is not null && _pages.TryGetValue(value.Key, out var page)) Current = page;
+        if (value is not null && _pages.TryGetValue(value.Key, out var page))
+        {
+            Current = page;
+            if (page is FaultsViewModel fv) _ = fv.RefreshAsync();   // analyse whenever the page is opened
+        }
     }
 
     public void Navigate(string key) => Selected = Items.FirstOrDefault(i => i.Key == key) ?? Selected;

@@ -5,6 +5,7 @@ import android.content.Intent
 import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -223,11 +224,12 @@ fun NearbyScreen(vm: FleetViewModel, onOpen: (String) -> Unit) {
         Spacer(Modifier.height(12.dp))
         Text("Nearby devices", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
         OutlinedTextField(search, { search = it }, Modifier.fillMaxWidth().padding(vertical = 8.dp), singleLine = true, placeholder = { Text("Search name, address, maker") })
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.horizontalScrollCompat()) {
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.chipRow()) {
             listOf("All", "Heard now", "Not heard", "Weak", "Unstable").forEach { f -> FilterChip(filter == f, { filter = f }, label = { Text(f) }) }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 4.dp)) {
-            listOf("Last heard", "Signal", "Name").forEach { s -> FilterChip(sort == s, { sort = s }, label = { Text("Sort: $s") }) }
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically, modifier = Modifier.padding(top = 4.dp).chipRow()) {
+            Text("Sort", color = FleetColors.Muted, fontSize = 12.sp)
+            listOf("Last heard", "Signal", "Name").forEach { s -> FilterChip(sort == s, { sort = s }, label = { Text(s) }) }
         }
         Text("${filtered.size} of ${rows.size} devices", color = FleetColors.Muted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp))
         if (rows.isEmpty()) Text("Nothing heard yet. Start a scan on the Scanner tab.", color = FleetColors.Muted)
@@ -239,6 +241,9 @@ fun NearbyScreen(vm: FleetViewModel, onOpen: (String) -> Unit) {
 
 @Composable
 private fun Modifier.horizontalScrollCompat(): Modifier = this.then(Modifier.fillMaxWidth())
+
+@Composable
+private fun Modifier.chipRow(): Modifier = this.fillMaxWidth().horizontalScroll(rememberScrollState())
 
 @Composable
 fun DeviceCard(r: DeviceRow, onClick: () -> Unit) {
@@ -509,7 +514,7 @@ fun SettingsScreen(vm: FleetViewModel) {
             Text("Replaces the real devices on the radar and in the lists with made-up ones, so the app can be photographed without showing real surroundings. A DEMO DATA banner stays on every screen while it is on. Nothing is stored or uploaded.", color = FleetColors.Muted, fontSize = 12.sp)
         }
         Card2 {
-            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.2.0")
+            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.2.1")
             Text("Local only: no ads, no analytics, no cloud. Needs no internet access in this version.", color = FleetColors.Muted, fontSize = 12.sp)
         }
     }

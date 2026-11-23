@@ -109,6 +109,7 @@ public partial class App : System.Windows.Application
         sc.AddSingleton<IFleetStore, EfFleetStore>();
         sc.AddSingleton<DeviceAdminService>();
         sc.AddSingleton<HistoryQueries>();
+        sc.AddSingleton<FaultQueries>();
         sc.AddSingleton<WindowsBleScanner>();
         sc.AddSingleton(sp => new ObservationPipeline(
             sp.GetRequiredService<IFleetStore>(), sp.GetRequiredService<SettingsStore>().Current.ScannerId,
@@ -127,6 +128,7 @@ public partial class App : System.Windows.Application
         sc.AddSingleton<LiveMonitorViewModel>();
         sc.AddSingleton<InventoryViewModel>();
         sc.AddSingleton<HistoryViewModel>();
+        sc.AddSingleton<FaultsViewModel>();
         sc.AddSingleton<EventLogViewModel>();
         sc.AddSingleton<ScannerViewModel>();
         sc.AddSingleton<SettingsViewModel>();

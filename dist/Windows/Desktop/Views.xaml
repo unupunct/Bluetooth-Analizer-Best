@@ -4,6 +4,7 @@
                     xmlns:lvc="clr-namespace:LiveChartsCore.SkiaSharpView.WPF;assembly=LiveChartsCore.SkiaSharpView.WPF">
 
     <!-- ============ Dashboard ============ -->
+    <BooleanToVisibilityConverter x:Key="BoolToVis"/>
     <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
             <StackPanel Margin="22,18,22,22">
@@ -271,6 +272,101 @@
                 </ScrollViewer>
             </Border>
             <TextBlock Grid.Row="3" Grid.ColumnSpan="2" Style="{StaticResource MutedText}" Margin="0,8,0,0" Text="{Binding Message}" TextWrapping="Wrap"/>
+        </Grid>
+    </DataTemplate>
+
+    <!-- ============ Fault Detector / Worst Offenders ============ -->
+    <DataTemplate DataType="{x:Type vm:FaultsViewModel}">
+        <Grid Margin="20">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="360"/></Grid.ColumnDefinitions>
+            <StackPanel Grid.ColumnSpan="2">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource H1}" Text="Worst Offenders"/>
+                    <Border Background="{StaticResource WarnBg}" CornerRadius="10" Padding="10,2" Margin="14,2,0,0" VerticalAlignment="Top" Visibility="{Binding IsDemo, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="DEMO DATA" Foreground="{StaticResource Warn}" FontWeight="SemiBold" FontSize="11"/>
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="{Binding Summary}" Style="{StaticResource MutedText}" TextWrapping="Wrap" Margin="0,-6,0,10"/>
+            </StackPanel>
+            <WrapPanel Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,10">
+                <ComboBox Width="130" ItemsSource="{x:Static vm:FaultsViewModel.Windows}" SelectedItem="{Binding Window}" Margin="0,0,8,0" ToolTip="Time window"/>
+                <ComboBox Width="120" ItemsSource="{Binding Categories}" SelectedItem="{Binding Category}" Margin="0,0,8,0" ToolTip="Device category"/>
+                <ComboBox Width="110" ItemsSource="{Binding Rooms}" SelectedItem="{Binding Room}" Margin="0,0,8,0" ToolTip="Room"/>
+                <ComboBox Width="160" ItemsSource="{x:Static vm:FaultsViewModel.FailureTypes}" SelectedItem="{Binding FailureType}" Margin="0,0,8,0" ToolTip="Failure type"/>
+                <TextBox Width="170" Text="{Binding Search, UpdateSourceTrigger=PropertyChanged}" Margin="0,0,8,0" ToolTip="Search name, room or workstation"/>
+                <CheckBox Content="Only devices with findings" IsChecked="{Binding OnlyProblems}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                <Button Content="Re-analyse" Command="{Binding RefreshCommand}"/>
+            </WrapPanel>
+            <DataGrid Grid.Row="2" ItemsSource="{Binding Rows}" SelectedItem="{Binding Selected, Mode=TwoWay}" Margin="0,0,12,0">
+                <DataGrid.InputBindings><MouseBinding Gesture="LeftDoubleClick" Command="{Binding OpenHistoryCommand}"/></DataGrid.InputBindings>
+                <DataGrid.Columns>
+                    <DataGridTextColumn Header="#" Binding="{Binding Rank}" Width="36"/>
+                    <DataGridTextColumn Header="Device" Binding="{Binding Name}" Width="125"/>
+                    <DataGridTemplateColumn Header="Health" Width="56" SortMemberPath="HealthValue">
+                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding HealthText}" Foreground="{Binding BandBrush}" FontWeight="Bold" FontSize="15"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTemplateColumn Header="Verdict" Width="88">
+                        <DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Text="{Binding BandText}" Foreground="{Binding BandBrush}"/></DataTemplate></DataGridTemplateColumn.CellTemplate>
+                    </DataGridTemplateColumn>
+                    <DataGridTextColumn Header="Conf." Binding="{Binding ConfidenceText}" Width="48"/>
+                    <DataGridTextColumn Header="Drops" Binding="{Binding Interruptions}" Width="46"/>
+                    <DataGridTextColumn Header="Tests" Binding="{Binding TestsText}" Width="88"/>
+                    <DataGridTextColumn Header="Room" Binding="{Binding Room}" Width="62"/>
+                    <DataGridTextColumn Header="Main finding" Binding="{Binding TopFinding}" Width="*"/>
+                </DataGrid.Columns>
+            </DataGrid>
+            <Border Grid.Row="2" Grid.Column="1" Background="{StaticResource Panel}" BorderBrush="{StaticResource Line}" BorderThickness="1" CornerRadius="6" Padding="14">
+                <ScrollViewer VerticalScrollBarVisibility="Auto">
+                    <StackPanel Visibility="{Binding HasSelection, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="{Binding SelectedTitle}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding SelectedHealth}" Foreground="{Binding SelectedBrush}" FontWeight="SemiBold" Margin="0,2,0,8" TextWrapping="Wrap"/>
+                        <TextBlock Style="{StaticResource H2}" Text="WHY THIS SCORE"/>
+                        <ItemsControl ItemsSource="{Binding Components}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <StackPanel Margin="0,0,0,8">
+                                    <Grid>
+                                        <TextBlock Text="{Binding Name}" FontWeight="SemiBold"/>
+                                        <TextBlock HorizontalAlignment="Right" Text="{Binding ScoreText}" Style="{StaticResource MutedText}"/>
+                                    </Grid>
+                                    <ProgressBar Style="{StaticResource FlatBar}" Height="5" Value="{Binding Percent}" Foreground="{Binding Fill}" Margin="0,3,0,3"/>
+                                    <TextBlock Text="{Binding Explanation}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap"/>
+                                </StackPanel>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource H2}" Text="FINDINGS"/>
+                        <ItemsControl ItemsSource="{Binding Findings}">
+                            <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,4" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource H2}" Text="WHAT TO DO"/>
+                        <TextBlock Text="{Binding SelectedRecommendation}" TextWrapping="Wrap" FontSize="12"/>
+                        <Button Content="Open full history" Command="{Binding OpenHistoryCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+            <StackPanel Grid.Row="3" Grid.ColumnSpan="2" Margin="0,10,0,0">
+                <TextBlock Text="{Binding Status}" Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11"/>
+                <Expander Header="Shared outages (environment or scanner)" Foreground="{StaticResource Fg}" Margin="0,6,0,0">
+                    <ItemsControl ItemsSource="{Binding SharedOutages}" Margin="0,6,0,0">
+                        <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,0,0,3"/></DataTemplate></ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </Expander>
+                <Expander Header="Score weights and thresholds (adjustable; the defaults are engineering starting points, not validated failure rates)" Foreground="{StaticResource Fg}" Margin="0,4,0,0">
+                    <StackPanel Margin="0,8,0,0">
+                        <WrapPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Presence"/><TextBox Width="60" Text="{Binding WeightPresence}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Signal"/><TextBox Width="60" Text="{Binding WeightSignal}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Recovery"/><TextBox Width="60" Text="{Binding WeightRecovery}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="RSSI trend"/><TextBox Width="60" Text="{Binding WeightTrend}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Conn. tests"/><TextBox Width="60" Text="{Binding WeightTests}"/></StackPanel>
+                            <StackPanel Margin="12,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Min gap (s)"/><TextBox Width="60" Text="{Binding MinGapSeconds}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Min observations"/><TextBox Width="80" Text="{Binding MinObservations}"/></StackPanel>
+                            <StackPanel Margin="0,0,12,6"><TextBlock Style="{StaticResource MutedText}" Text="Min confidence (0-1)"/><TextBox Width="80" Text="{Binding MinConfidence}"/></StackPanel>
+                        </WrapPanel>
+                        <StackPanel Orientation="Horizontal"><Button Content="Apply and re-analyse" Command="{Binding ApplySettingsCommand}"/><Button Content="Reset to defaults" Command="{Binding ResetSettingsCommand}"/></StackPanel>
+                    </StackPanel>
+                </Expander>
+            </StackPanel>
         </Grid>
     </DataTemplate>
 

@@ -283,13 +283,44 @@ public static class Headless
         sp.GetRequiredService<DashboardMetrics>().SeedDemo();
         dashboard.EnterDemo();
 
+        // Fault Detector demo: fictional week of evidence for the same devices, run through the real analyzer.
+        var faults = sp.GetRequiredService<FaultsViewModel>();
+        {
+            var wnd = new BluetoothFleetMonitor.Application.Diagnostics.TimeRange(now.AddDays(-7), now);
+            var fr = new Random(5); var ev = new List<BluetoothFleetMonitor.Application.Diagnostics.DeviceEvidence>(); var di = 0;
+            var outage = new BluetoothFleetMonitor.Application.Diagnostics.TimeRange(now.AddDays(-2).AddHours(-3), now.AddDays(-2).AddHours(-3).AddMinutes(28));
+            var scannerOff = new BluetoothFleetMonitor.Application.Diagnostics.TimeRange(now.AddDays(-4), now.AddDays(-4).AddHours(3));
+            foreach (var d in registry.Devices.OrderBy(x => x.Name).ToList())
+            {
+                var sil = new List<BluetoothFleetMonitor.Application.Diagnostics.TimeRange> { outage, scannerOff };
+                var flaky = di % 9 == 4; var fading = di % 13 == 6; var bad = di % 17 == 3;
+                if (flaky || bad) for (var day = 0; day < 7; day++) for (var k = 0; k < (bad ? 4 : 3); k++)
+                {
+                    var s0 = now.AddDays(-day).AddHours(-2 - k * 6 - fr.Next(0, 3)); sil.Add(new(s0, s0.AddMinutes(6 + fr.Next(0, bad ? 28 : 9))));
+                }
+                var baseRssi = -48 - fr.Next(0, 38);
+                var buckets = Enumerable.Range(0, 672).Select(i => new BluetoothFleetMonitor.Application.Diagnostics.RssiBucket(wnd.StartUtc.AddMinutes(i * 15),
+                    baseRssi + Math.Sin((i + di) / 11.0) * (flaky ? 6 : 1.8) - (fading ? i * 0.022 : 0) + (fr.NextDouble() - 0.5) * 2, 60)).ToList();
+                ev.Add(new BluetoothFleetMonitor.Application.Diagnostics.DeviceEvidence
+                {
+                    DeviceId = d.Id, Name = d.Name, Category = d.Category, Room = d.Room, Workstation = d.Workstation, Observations = 120_000, FirstSeenUtc = now.AddDays(-30),
+                    Silences = sil.Where(x => x.EndUtc > wnd.StartUtc && x.EndUtc <= now).ToList(), Buckets = buckets,
+                    TestAttempts = bad ? 10 : di % 11 == 0 ? 6 : 0, TestFailures = bad ? 6 : 0,
+                });
+                di++;
+            }
+            ev.Add(new BluetoothFleetMonitor.Application.Diagnostics.DeviceEvidence { DeviceId = Guid.NewGuid(), Name = "Tag 09 (just added)", Category = "Tag", Observations = 40, FirstSeenUtc = now.AddHours(-1), Buckets = Array.Empty<BluetoothFleetMonitor.Application.Diagnostics.RssiBucket>() });
+            var cover = new[] { new BluetoothFleetMonitor.Application.Diagnostics.TimeRange(wnd.StartUtc, scannerOff.StartUtc), new BluetoothFleetMonitor.Application.Diagnostics.TimeRange(scannerOff.EndUtc, now) };
+            faults.LoadAnalysis(BluetoothFleetMonitor.Application.Diagnostics.FaultAnalyzer.Analyze(ev, cover, wnd, faults.Settings), "Last 7 days");
+        }
+
         var window = sp.GetRequiredService<MainWindow>();
         window.Left = -20000; window.Top = 0; window.ShowInTaskbar = false; window.Width = 1400;
         window.Show();
         var main = sp.GetRequiredService<MainViewModel>();
         main.StatusBar = "DEMO DATA: fictional devices and values for documentation. Not real measurements.";
         var selection = sp.GetRequiredService<SelectionService>();
-        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640) };
+        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640), ("faults", "windows-fault-detector.png", 900) };
         var report = new StringBuilder("Demo screenshots (fictional data)\n");
         var failures = 0;
         foreach (var (key, file, height) in pages)

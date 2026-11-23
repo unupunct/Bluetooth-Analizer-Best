@@ -311,17 +311,26 @@ private fun RadarCanvas(blips: List<Blip>, selected: String?, targetAddress: Str
             val r = if (isSel || b.address == targetAddress) 11f else 8f
             drawCircle(col.copy(alpha = if (dim) 0.05f else 0.18f), r * 2.4f, p)               // glow
             if (known) drawCircle(col, r, p) else { drawCircle(col.copy(alpha = 0.15f), r, p); drawCircle(col, r, p, style = Stroke(2.5f)) }
-            if (isSel || b.address == targetAddress || (!dim && b.address in nearest)) {
-                val txt = measurer.measure("${b.name.take(16)} ${Ranging.format(b.radiusM)}", TextStyle(color = if (isSel) Color.White else Color(0xFFBFD8D1), fontSize = 10.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal))
-                val tx = (p.x + r + 6f).coerceAtMost(size.width - txt.size.width - 2f)
-                drawText(txt, topLeft = Offset(tx, p.y - txt.size.height / 2f))
-            }
             b.alternative?.let { (ax, ay) ->            // the mirror-image alternative, dashed
                 val bearing = (Math.toDegrees(atan2(ax, ay)) + 360) % 360
                 val ab = Blip(b.address, b.name, hypot(ax, ay), bearing, b.color, null)
                 val ap = place(ab, c, maxR, rangeM, headingDeg)
                 drawCircle(b.color.copy(alpha = 0.7f), 9f, ap, style = Stroke(2f, pathEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))))
             }
+        }
+        // Labels: selected / searched device first, then the nearest few. A label that would overlap one already drawn is skipped, so the
+        // radar stays readable when many devices are close together (they are all still listed under the radar).
+        val placed = mutableListOf<androidx.compose.ui.geometry.Rect>()
+        val order = blips.filter { it.address == selected || it.address == targetAddress } + blips.filter { it.address in nearest && it.address != selected && it.address != targetAddress && targetAddress == null }.sortedBy { it.radiusM }
+        for (b in order) {
+            val isSel = b.address == selected
+            val p = place(b, c, maxR, rangeM, headingDeg)
+            val txt = measurer.measure("${b.name.take(16)} ${Ranging.format(b.radiusM)}", TextStyle(color = if (isSel) Color.White else Color(0xFFBFD8D1), fontSize = 10.sp, fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal))
+            val tx = (p.x + 14f).coerceAtMost(size.width - txt.size.width - 2f)
+            val rect = androidx.compose.ui.geometry.Rect(tx - 2f, p.y - txt.size.height / 2f - 1f, tx + txt.size.width + 2f, p.y + txt.size.height / 2f + 1f)
+            if (!isSel && b.address != targetAddress && placed.any { it.overlaps(rect) }) continue
+            placed += rect
+            drawText(txt, topLeft = Offset(tx, p.y - txt.size.height / 2f))
         }
     }
 }
