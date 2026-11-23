@@ -91,6 +91,14 @@ class AggregatorTest {
         val agg2 = ObservationAggregator(0)
         assertNotEquals(agg2.offer(ad("A1", 0, -60))!!.id, agg2.offer(ad("A1", 1, -60))!!.id)
     }
+
+    @Test fun tx_power_and_flags_are_kept_from_the_first_advertisement_that_has_them() {
+        val agg = ObservationAggregator(10_000)
+        fun withExtras(t: Long, tx: Int?, fl: Int?) = BleAdvertisement("i$t", t, "A1", AddressKind.Unknown, -60, null, emptyList(), emptyList(), ByteArray(0), tx, fl)
+        agg.offer(withExtras(0, null, null)); agg.offer(withExtras(100, -8, 6)); agg.offer(withExtras(200, -4, 2))
+        val a = agg.flushAll().single()
+        assertEquals(-8, a.txPower); assertEquals(6, a.flags)
+    }
 }
 
 class PresenceStatusTest {

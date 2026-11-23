@@ -107,6 +107,7 @@ class ScanEngine @Inject constructor(
             running = true; userWantsScan = true
             health.started()
             publishStatus()
+            scope.launch { reRegisterBackgroundScan() }
             return
         }
         val last = settings.heartbeatMs
@@ -242,20 +243,41 @@ class ScanEngine @Inject constructor(
 
     /** Called from the background-scan receiver, possibly in a freshly started process. */
     fun ingestBackground(results: List<ScanResult>) {
-        if (!running) { // process was recreated: resume the pipeline around the OS-managed scan
-            running = true; userWantsScan = true; _mode.value = ScanMode.Background
-            health.started()
-            channel = Channel(QUEUE_CAPACITY)
-            aggregator = ObservationAggregator(settings.sampleIntervalMs(ScanMode.Background))
-            startProcessor()
+        synchronized(this) {
+            // A process Android recreated just to deliver results has no processing loop yet, even if recovery already
+            // marked the scan as running. Without this the results would pile up in a queue nobody empties.
+            if (processor?.isActive != true) {
+                if (!running) { running = true; userWantsScan = true; _mode.value = ScanMode.Background; health.started() }
+                channel = Channel(QUEUE_CAPACITY)
+                aggregator = ObservationAggregator(settings.sampleIntervalMs(ScanMode.Background))
+                startProcessor()
+            }
         }
         results.forEach(::ingest)
+    }
+
+    /**
+     * The OS keeps a PendingIntent scan across process death, but not across an app update or a force-stop, and there is
+     * no API to ask whether it is still registered. So whenever the app restarts in Background mode it registers the scan
+     * again (stop then start with the same PendingIntent), instead of claiming coverage it may not have.
+     */
+    private fun reRegisterBackgroundScan() {
+        synchronized(this) {
+            if (!userWantsScan || _mode.value != ScanMode.Background) return
+            val problem = preflightError()
+            if (problem != null) { interrupt(problem); return }
+            stopScanning()
+            val error = startScanning()
+            if (error != null) { interrupt(error); scheduleRetry() } else _scanScope.value = describeBackgroundScope()
+        }
     }
 
     private fun enqueue(ad: BleAdvertisement) {
         health.advertisementReceived()
         heard.incrementAndGet()
-        if (!channel.trySend(ad).isSuccess) dropped.incrementAndGet()
+        val sent = channel.trySend(ad)
+        // An advertisement arriving after the queue was closed by a stop is not an overflow; only a full queue is.
+        if (sent.isFailure && !sent.isClosed) dropped.incrementAndGet()
     }
 
     private fun startScanning(): String? {
@@ -263,7 +285,8 @@ class ScanEngine @Inject constructor(
         return try {
             if (_mode.value == ScanMode.Background) {
                 val code = s.startScan(backgroundFilters(), backgroundSettings(), backgroundIntent())
-                if (code != 0) "Background scan could not start: ${ScanMapping.scanFailureText(code)}" else null
+                if (code != 0) "Background scan could not start: ${ScanMapping.scanFailureText(code)}"
+                else { _scanScope.value = describeBackgroundScope(); null }
             } else {
                 s.startScan(null, lowLatency(), callback)
                 null
@@ -289,6 +312,15 @@ class ScanEngine @Inject constructor(
         // No names given: watch the devices already known. An empty filter would be an open-ended scan, which Android pauses with the screen off.
         val known = runBlocking { repo.allDevices().map { it.address } }.mapNotNull(::addressFilter)
         return known.ifEmpty { listOf(ScanFilter.Builder().build()) }
+    }
+
+    /** What the OS-managed background scan is filtered to, for the Scanner screen. */
+    private fun describeBackgroundScope(): String {
+        val names = settings.settings.value.backgroundDeviceNames.split(',').map { it.trim() }.filter { it.isNotEmpty() }
+        if (names.isNotEmpty()) return "Background: only devices named ${names.joinToString(", ")}"
+        val known = runBlocking { repo.allDevices() }.count { addressFilter(it.address) != null }
+        return if (known > 0) "Background: watching $known known devices (Android keeps filtered scans running with the screen off)"
+        else "Background: open-ended scan, which Android pauses when the screen is off (no devices known yet to filter on)"
     }
 
     private fun addressFilter(address: String): ScanFilter? {

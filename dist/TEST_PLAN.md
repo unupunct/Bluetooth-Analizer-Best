@@ -62,12 +62,12 @@ Install on a phone (USB debugging on): `adb install -r <apk>`. Needs JDK 17 + An
 Phone checklist (ticked only where observed on a real phone):
 
 - [x] First launch: permission prompt appears, grant works, Scanner tab turns green (Galaxy A52s, Android 14)
-- [~] Continuous mode: notification visible and devices stored (verified); scan with the screen off was found to pause and was changed to a known-devices scan, which still needs a retest
+- [x] Continuous mode: notification visible, devices stored, and the screen-off scan now continues as a known-devices scan (verified 14:41-14:42; a 10+ minute run is still not done)
 - [ ] Turn Bluetooth off during a scan: status Interrupted + a coverage gap; turn it on: scan resumes by itself
 - [ ] Revoke the permission while scanning: status explains it, no crash
 - [x] Force-stop the app mid-scan, reopen: a gap is recorded and nothing claims coverage for the missing time (Galaxy A52s)
 - [~] Inspection: session at "Studio 01" started and tagged 1,601 windows (verified); ending it and the saved-sessions list not yet seen
-- [ ] Background mode with a name filter: results arrive with the app closed and the screen off
+- [~] Background mode: results keep arriving after the process is killed (verified 2026-11-23, filter = 512 known devices); with the screen off and with a name filter not yet tested
 - [ ] The same device on the phone and on Windows has the same fingerprint (compare the Fleet fingerprints once Phase 3 sync exists)
 - [ ] Battery: scan for an hour with defaults, note the drain
 

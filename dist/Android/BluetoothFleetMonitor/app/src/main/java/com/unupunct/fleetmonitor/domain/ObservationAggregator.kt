@@ -18,6 +18,8 @@ class AggregatedObservation(
     val manufacturerData: String?,
     val serviceUuids: String?,
     val advertisementData: String?,
+    val txPower: Int? = null,
+    val flags: Int? = null,
 )
 
 /**
@@ -33,10 +35,15 @@ class ObservationAggregator(private val windowMs: Long) {
         var sum = first.rssi.toLong()
         var count = 1
         var name: String? = first.name
+        // The first advertisement that carries them wins; many devices omit them from some advertisement types.
+        var txPower: Int? = first.txPower
+        var flags: Int? = first.flags
         fun add(ad: BleAdvertisement) {
             last = ad; if (ad.rssi < min) min = ad.rssi; if (ad.rssi > max) max = ad.rssi
             sum += ad.rssi; count++
             if (!ad.name.isNullOrBlank()) name = ad.name
+            if (txPower == null) txPower = ad.txPower
+            if (flags == null) flags = ad.flags
         }
     }
 
@@ -80,6 +87,8 @@ class ObservationAggregator(private val windowMs: Long) {
                 else ad.manufacturer.joinToString(";") { String.format("%04X:%s", it.companyId, Fingerprint.hex(it.data)) },
             serviceUuids = if (ad.serviceUuids.isEmpty()) null else ad.serviceUuids.joinToString(";"),
             advertisementData = if (ad.payload.isEmpty()) null else Fingerprint.hex(ad.payload),
+            txPower = b.txPower,
+            flags = b.flags,
         )
     }
 }

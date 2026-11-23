@@ -50,6 +50,7 @@ class FleetRepository @Inject constructor(private val db: FleetDatabase) {
                     rssi = it.rssiLast, rssiMin = it.rssiMin, rssiMax = it.rssiMax, rssiAvg = it.rssiAvg, advCount = it.advCount,
                     name = it.name, manufacturerData = it.manufacturerData, serviceUuids = it.serviceUuids,
                     advertisementData = it.advertisementData, sessionId = sessionId, locationLabel = location, scanMode = mode.name,
+                    txPower = it.txPower, advertiseFlags = it.flags,
                 )
             }
             val results = db.observations().insertAll(entities)

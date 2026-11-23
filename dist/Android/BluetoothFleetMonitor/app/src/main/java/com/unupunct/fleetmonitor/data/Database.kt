@@ -53,6 +53,10 @@ data class ObservationEntity(
     val scanMode: String,
     val source: String = "Android",
     val uploadedAtMs: Long? = null,
+    /** Advertised transmit power in dBm, when the device includes it. Added in schema v2. */
+    val txPower: Int? = null,
+    /** Advertising flags byte (discoverability, BR/EDR support), when present. Added in schema v2. */
+    val advertiseFlags: Int? = null,
 )
 
 @Entity(tableName = "sessions")
@@ -145,10 +149,20 @@ interface DiagnosticsDao {
 
 @Database(
     entities = [DeviceEntity::class, ObservationEntity::class, SessionEntity::class, CoverageGapEntity::class, AppEventEntity::class],
-    version = 1,
+    version = 2,
     exportSchema = true,
 )
 abstract class FleetDatabase : RoomDatabase() {
+    companion object {
+        /** v1 -> v2: keep every stored observation, add the two optional advertisement fields. */
+        val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE observations ADD COLUMN txPower INTEGER")
+                db.execSQL("ALTER TABLE observations ADD COLUMN advertiseFlags INTEGER")
+            }
+        }
+    }
+
     abstract fun devices(): DeviceDao
     abstract fun observations(): ObservationDao
     abstract fun sessions(): SessionDao

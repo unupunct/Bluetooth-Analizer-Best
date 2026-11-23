@@ -20,5 +20,5 @@ object AppModule {
     @Provides
     @Singleton
     fun database(@ApplicationContext context: android.content.Context): FleetDatabase =
-        Room.databaseBuilder(context, FleetDatabase::class.java, "fleet.db").build()
+        Room.databaseBuilder(context, FleetDatabase::class.java, "fleet.db").addMigrations(FleetDatabase.MIGRATION_1_2).build()
 }
