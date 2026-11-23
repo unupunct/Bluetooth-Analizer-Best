@@ -35,6 +35,7 @@ public partial class App : System.Windows.Application
         var config = new ConfigurationBuilder().SetBasePath(AppContext.BaseDirectory).AddJsonFile("appsettings.json", optional: true).Build();
         var dataArg = ArgValue(args, "--data");
         var configured = config["Fleet:DataDirectory"];
+        if (!string.IsNullOrWhiteSpace(configured)) configured = Environment.ExpandEnvironmentVariables(configured);   // the installer sets %LOCALAPPDATA%\BluetoothFleetMonitor\data
         var dataDir = dataArg ?? (configured is { Length: > 0 }
             ? (Path.IsPathRooted(configured) ? configured : Path.Combine(AppContext.BaseDirectory, configured))
             : null);

@@ -173,6 +173,10 @@ interface ObservationDao {
     @Query("UPDATE observations SET uploadedAtMs = :ts WHERE id IN (:ids)")
     suspend fun markUploaded(ids: List<String>, ts: Long)
 
+    /** A different PC has none of the data, so everything becomes "waiting" again. Re-sending is safe: the PC ignores ids it already has. */
+    @Query("UPDATE observations SET uploadedAtMs = NULL")
+    suspend fun clearUploadMarks()
+
     @Query("SELECT sessionId, COUNT(DISTINCT address) AS distinctDevices, COUNT(*) AS observations FROM observations WHERE sessionId IS NOT NULL GROUP BY sessionId")
     fun observeSessionSummaries(): Flow<List<SessionSummary>>
 

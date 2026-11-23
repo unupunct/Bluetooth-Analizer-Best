@@ -39,6 +39,7 @@ class FleetRepository @Inject constructor(private val db: FleetDatabase) {
     suspend fun setCalibration(address: String, ref: Int?) = db.devices().setCalibration(address, ref)
     suspend fun saveGattInfo(address: String, name: String?, maker: String?, model: String?, fw: String?) =
         db.devices().setGattInfo(address, name, maker, model, fw, System.currentTimeMillis())
+    suspend fun clearUploadMarks() = db.observations().clearUploadMarks()
     suspend fun pendingUploads(): Long = db.observations().pendingCount()
     suspend fun pendingBatch(limit: Int) = db.observations().pending(limit)
     suspend fun markUploaded(ids: List<String>, ts: Long) = db.observations().markUploaded(ids, ts)

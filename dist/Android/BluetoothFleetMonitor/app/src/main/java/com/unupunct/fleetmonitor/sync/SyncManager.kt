@@ -100,6 +100,9 @@ class SyncManager @Inject constructor(@ApplicationContext private val context: C
         _pending.value = null
         return try {
             val r = withContext(Dispatchers.IO) { SyncClient.pair(link, phoneName(), phoneId()) }
+            // Pairing with a PC this phone has not synced with before (its certificate differs): send everything to it, not just what is new.
+            if (prefs.getString("lastFp", null) != link.fingerprint) withContext(Dispatchers.IO) { repo.clearUploadMarks() }
+            prefs.edit().putString("lastFp", link.fingerprint).apply()
             prefs.edit().putString("token", r.token).putString("serverName", r.serverName).putString("host", link.host).putInt("port", link.port)
                 .putString("fp", link.fingerprint).putString("lastMessage", "Paired. Nothing uploaded yet.").remove("lastSync").apply()
             _state.value = load()

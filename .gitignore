@@ -32,3 +32,4 @@ graphify-out/
 # JVM crash dumps
 hs_err_pid*.log
 replay_pid*.log
+dist/Tools/

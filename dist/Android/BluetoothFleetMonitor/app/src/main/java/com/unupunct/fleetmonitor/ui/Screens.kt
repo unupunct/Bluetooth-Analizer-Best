@@ -46,11 +46,12 @@ private fun requestBattery(ctx: Context) {
 
 /** Re-reads permission, Bluetooth, Location and battery state every time the screen comes back to the front. */
 @Composable
-private fun rememberPhoneState(): State<PhoneState> {
+private fun rememberPhoneState(refreshKey: Int = 0): State<PhoneState> {
     val ctx = LocalContext.current
     fun read() = PhoneState(Permissions.hasScanPermission(ctx), Permissions.bluetoothEnabled(ctx), Permissions.locationServicesOn(ctx),
         Permissions.hasNotificationPermission(ctx), Permissions.ignoringBatteryOptimisations(ctx), Permissions.hasConnectPermission(ctx))
     val state = remember { mutableStateOf(read()) }
+    LaunchedEffect(refreshKey) { state.value = read() }      // re-read right after a permission dialog is answered
     val owner = LocalLifecycleOwner.current
     DisposableEffect(owner) {
         val obs = LifecycleEventObserver { _, e -> if (e == Lifecycle.Event.ON_RESUME) state.value = read() }
@@ -70,10 +71,13 @@ private fun Screen(title: String, content: @Composable ColumnScope.() -> Unit) {
 
 @Composable
 private fun SetupRow(ok: Boolean, title: String, detail: String, action: String?, onAction: () -> Unit) {
-    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+    Row(
+        Modifier.fillMaxWidth().padding(vertical = 3.dp).background(if (ok) FleetColors.Good.copy(alpha = 0.14f) else androidx.compose.ui.graphics.Color.Transparent, RoundedCornerShape(8.dp)).padding(horizontal = 6.dp, vertical = 5.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
         Text(if (ok) "OK" else "!", color = if (ok) FleetColors.Good else FleetColors.Warn, fontWeight = FontWeight.Bold, modifier = Modifier.width(30.dp))
         Column(Modifier.weight(1f)) {
-            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
+            Text(title, fontWeight = FontWeight.SemiBold, fontSize = 14.sp, color = if (ok) FleetColors.Good else FleetColors.Fg)
             Text(detail, color = FleetColors.Muted, fontSize = 12.sp)
         }
         if (!ok && action != null) OutlinedButton(onClick = onAction) { Text(action, fontSize = 12.sp) }
@@ -82,23 +86,25 @@ private fun SetupRow(ok: Boolean, title: String, detail: String, action: String?
 
 /** One place that says what the app needs, whether it has it, and lets the user grant it (the system always shows its own confirmation). */
 @Composable
-private fun SetupCard(phone: PhoneState, ctx: Context, onAllowEverything: () -> Unit) {
+private fun SetupCard(phone: PhoneState, ctx: Context, onAllow: (Array<String>) -> Unit, onAllowEverything: () -> Unit) {
     val sdk = android.os.Build.VERSION.SDK_INT
     val allOk = phone.permission && phone.bluetooth && (sdk >= 31 || phone.location) && phone.notifications && phone.battery && phone.connect
-    if (allOk) {
-        Card2 { Text("OK  Setup complete: the app has the permissions it needs.", color = FleetColors.Good, fontSize = 13.sp) }
-        return
-    }
+    val prefs = remember { ctx.getSharedPreferences("ui", Context.MODE_PRIVATE) }
+    var closed by remember { mutableStateOf(prefs.getBoolean("setupClosed", false)) }
+    // If something is switched off later, the list comes back by itself.
+    LaunchedEffect(allOk) { if (!allOk && closed) { closed = false; prefs.edit().putBoolean("setupClosed", false).apply() } }
+    if (allOk && closed) return
     Column(
-        Modifier.fillMaxWidth().background(FleetColors.WarnBg, RoundedCornerShape(10.dp)).border(1.dp, FleetColors.Warn, RoundedCornerShape(10.dp)).padding(12.dp),
+        Modifier.fillMaxWidth().background(if (allOk) FleetColors.Panel else FleetColors.WarnBg, RoundedCornerShape(10.dp))
+            .border(1.dp, if (allOk) FleetColors.Good else FleetColors.Warn, RoundedCornerShape(10.dp)).padding(12.dp),
     ) {
-        Text("Setup: allow what the app needs", color = FleetColors.Warn, fontWeight = FontWeight.SemiBold)
-        Text("Android shows its own confirmation for each one. Nothing here is used to track you.", color = FleetColors.Fg, fontSize = 12.sp)
+        Text(if (allOk) "Setup complete: everything is allowed" else "Setup: allow what the app needs", color = if (allOk) FleetColors.Good else FleetColors.Warn, fontWeight = FontWeight.SemiBold)
+        if (!allOk) Text("Press Allow on each line (Android asks you to confirm each one). A line turns green when it is allowed. Nothing here is used to track you.", color = FleetColors.Fg, fontSize = 12.sp)
         Spacer(Modifier.height(6.dp))
         SetupRow(phone.permission, if (sdk >= 31) "Nearby devices" else "Location permission",
-            if (sdk >= 31) "To hear Bluetooth advertisements. Never used to find your location." else "Android 10 and 11 require it to scan for Bluetooth. Your location is never recorded.", "Allow", onAllowEverything)
-        SetupRow(phone.notifications, "Notifications", "Shows the \"scanning\" notice, with a Stop button, while a scan runs in the background.", "Allow", onAllowEverything)
-        SetupRow(phone.connect, "Bluetooth connect", "Only for \"Connect and test\" on a device you pick, to read its name and model.", "Allow", onAllowEverything)
+            if (sdk >= 31) "To hear Bluetooth advertisements. Never used to find your location." else "Android 10 and 11 require it to scan for Bluetooth. Your location is never recorded.", "Allow") { onAllow(Permissions.scanPermissions()) }
+        SetupRow(phone.notifications, "Notifications", "Shows the \"scanning\" notice, with a Stop button, while a scan runs in the background.", "Allow") { onAllow(arrayOf("android.permission.POST_NOTIFICATIONS")) }
+        SetupRow(phone.connect, "Bluetooth connect", "Only for \"Connect and test\" on a device you pick, to read its name and model.", "Allow") { onAllow(Permissions.connectPermissions()) }
         SetupRow(phone.battery, "Run in the background", "Android otherwise pauses or kills long scans to save battery. Choose Allow in the next dialog.", "Allow") { requestBattery(ctx) }
         SetupRow(phone.bluetooth, "Bluetooth is on", "A running scan resumes by itself when Bluetooth comes back; the gap is recorded.", null) {}
         if (sdk < 31) SetupRow(phone.location, "Location setting is on", "Android 10 and 11 deliver no scan results while it is off. No location is recorded.", "Open") {
@@ -106,10 +112,11 @@ private fun SetupCard(phone: PhoneState, ctx: Context, onAllowEverything: () -> 
         }
         Spacer(Modifier.height(8.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onAllowEverything) { Text("Allow everything") }
+            if (allOk) Button(onClick = { closed = true; prefs.edit().putBoolean("setupClosed", true).apply() }) { Text("Close this list") }
+            else Button(onClick = onAllowEverything) { Text("Allow everything") }
             OutlinedButton(onClick = { runCatching { ctx.startActivity(Permissions.appDetailsIntent(ctx)) } }) { Text("App settings") }
         }
-        if (android.os.Build.MANUFACTURER.equals("samsung", true))
+        if (!allOk && android.os.Build.MANUFACTURER.equals("samsung", true))
             Text("Samsung: also set Battery to Unrestricted in App settings, and keep the app out of \"Sleeping apps\".", color = FleetColors.Muted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp))
     }
 }
@@ -125,20 +132,22 @@ fun ScannerScreen(vm: FleetViewModel, onStarted: () -> Unit = {}) {
     val rows by vm.rows.collectAsState()
     val gaps by vm.gaps.collectAsState()
     val scope by vm.engine.scanScope.collectAsState()
-    val phone by rememberPhoneState()
+    var phoneTick by remember { mutableStateOf(0) }
+    val phone by rememberPhoneState(phoneTick)
     val settings by vm.settings.collectAsState()
     var selected by remember { mutableStateOf(vm.mode.value) }
     var error by remember { mutableStateOf<String?>(null) }
     var chainBattery by remember { mutableStateOf(false) }
     // "Allow everything": ask for the runtime permissions, then (once those are answered) the battery exemption.
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestMultiplePermissions()) {
+        phoneTick++
         if (chainBattery && !Permissions.ignoringBatteryOptimisations(ctx)) requestBattery(ctx)
         chainBattery = false
     }
     val scanning = status.state == ScannerState.Running || status.state == ScannerState.RunningNoAdvertisements
 
     Screen("Scanner") {
-        SetupCard(phone, ctx) { chainBattery = true; launcher.launch(Permissions.everything()) }
+        SetupCard(phone, ctx, onAllow = { perms -> if (perms.isNotEmpty()) launcher.launch(perms) }) { chainBattery = true; launcher.launch(Permissions.everything()) }
         error?.let { Banner("Could not start", it) }
         if (status.state == ScannerState.RunningNoAdvertisements || status.state == ScannerState.Interrupted) Banner("Scanner needs attention", status.message)
 
@@ -580,7 +589,7 @@ fun SettingsScreen(vm: FleetViewModel) {
             Text("Replaces the real devices on the radar and in the lists with made-up ones, so the app can be photographed without showing real surroundings. A DEMO DATA banner stays on every screen while it is on. Nothing is stored or uploaded.", color = FleetColors.Muted, fontSize = 12.sp)
         }
         Card2 {
-            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.3.0")
+            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.3.1")
             Text("Local only: no ads, no analytics, no cloud. The only network use is uploading to the Windows PC you paired, over HTTPS on your own network.", color = FleetColors.Muted, fontSize = 12.sp)
         }
     }
