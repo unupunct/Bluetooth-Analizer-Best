@@ -76,6 +76,12 @@ public sealed partial class LiveMonitorViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void Analyse()
+    {
+        if (Selected is not null) _selection.OpenAnalysis(Selected.Id);
+    }
+
+    [RelayCommand]
     private void ExportView()
     {
         var path = Dialogs.SaveFile("Export current results", $"live-monitor-{DateTime.Now:yyyyMMdd-HHmmss}.csv", "CSV (*.csv)|*.csv");

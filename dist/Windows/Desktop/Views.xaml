@@ -205,7 +205,7 @@
                 <Button Command="{Binding ToggleScanCommand}">
                     <TextBlock><TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}"><Setter Property="Text" Value="Resume scanning"/><Style.Triggers><DataTrigger Binding="{Binding Scanning}" Value="True"><Setter Property="Text" Value="Pause scanning"/></DataTrigger></Style.Triggers></Style></TextBlock.Style></TextBlock>
                 </Button>
-                <Button Content="Open history" Command="{Binding OpenHistoryCommand}"/>
+                <Button Content="Analyse" Command="{Binding AnalyseCommand}"/><Button Content="Open history" Command="{Binding OpenHistoryCommand}"/>
                 <Button Content="Export results" Command="{Binding ExportViewCommand}"/>
                 <TextBlock Style="{StaticResource MutedText}" VerticalAlignment="Center" Text="{Binding Count}"/>
             </WrapPanel>
@@ -263,7 +263,7 @@
                         <TextBlock Style="{StaticResource MutedText}" Text="Room"/><TextBox Text="{Binding EditRoom, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,8"/>
                         <TextBlock Style="{StaticResource MutedText}" Text="Workstation"/><TextBox Text="{Binding EditWorkstation, UpdateSourceTrigger=PropertyChanged}" Margin="0,2,0,8"/>
                         <TextBlock Style="{StaticResource MutedText}" Text="Notes"/><TextBox Text="{Binding EditNotes, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="60" Margin="0,2,0,8"/>
-                        <StackPanel Orientation="Horizontal"><Button Content="Save" Command="{Binding SaveCommand}"/><Button Content="Open history" Command="{Binding OpenHistoryCommand}"/></StackPanel>
+                        <StackPanel Orientation="Horizontal"><Button Content="Save" Command="{Binding SaveCommand}"/><Button Content="Analyse" Command="{Binding AnalyseCommand}"/><Button Content="Open history" Command="{Binding OpenHistoryCommand}"/></StackPanel>
                         <TextBlock Style="{StaticResource H2}" Text="MERGE (same physical device?)"/>
                         <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" FontSize="11" Text="Merges this device into the one picked below. Names are never merged automatically. Audited in the Event Log."/>
                         <ComboBox ItemsSource="{Binding Registry.Devices}" DisplayMemberPath="Name" SelectedItem="{Binding MergeTarget}" Margin="0,6,0,6"/>
@@ -340,7 +340,7 @@
                         </ItemsControl>
                         <TextBlock Style="{StaticResource H2}" Text="WHAT TO DO"/>
                         <TextBlock Text="{Binding SelectedRecommendation}" TextWrapping="Wrap" FontSize="12"/>
-                        <Button Content="Open full history" Command="{Binding OpenHistoryCommand}" HorizontalAlignment="Left" Margin="0,12,0,0"/>
+                        <StackPanel Orientation="Horizontal" Margin="0,12,0,0"><Button Content="Analyse signal" Command="{Binding AnalyseCommand}"/><Button Content="Open full history" Command="{Binding OpenHistoryCommand}"/></StackPanel>
                     </StackPanel>
                 </ScrollViewer>
             </Border>
@@ -452,6 +452,98 @@
                 <TextBlock Text="{Binding Message}" Foreground="{StaticResource Warn}" Margin="0,8,0,0" TextWrapping="Wrap"/>
             </StackPanel>
         </ScrollViewer>
+    </DataTemplate>
+
+    <!-- ============ Signal Analysis (device deep-dive) ============ -->
+    <DataTemplate DataType="{x:Type vm:SignalAnalysisViewModel}">
+        <Grid Margin="20">
+            <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource H1}" Text="Signal Analysis"/>
+                    <TextBlock Text="{Binding Title}" FontSize="20" Foreground="{StaticResource Muted}" Margin="12,0,0,10" Visibility="{Binding HasDevice, Converter={StaticResource BoolToVis}}"/>
+                    <Border Background="{StaticResource WarnBg}" CornerRadius="10" Padding="10,2" Margin="14,2,0,0" VerticalAlignment="Top" Visibility="{Binding IsDemo, Converter={StaticResource BoolToVis}}">
+                        <TextBlock Text="DEMO DATA" Foreground="{StaticResource Warn}" FontWeight="SemiBold" FontSize="11"/>
+                    </Border>
+                </StackPanel>
+                <TextBlock Text="{Binding Verdict}" Foreground="{Binding VerdictBrush}" FontSize="15" FontWeight="SemiBold" Margin="0,-6,0,6" Visibility="{Binding HasDevice, Converter={StaticResource BoolToVis}}"/>
+            </StackPanel>
+            <WrapPanel Grid.Row="1" Margin="0,0,0,10" Visibility="{Binding HasDevice, Converter={StaticResource BoolToVis}}">
+                <ComboBox Width="140" ItemsSource="{x:Static vm:SignalAnalysisViewModel.Windows}" SelectedItem="{Binding Window}" Margin="0,0,8,0" ToolTip="Time window"/>
+                <ComboBox Width="200" ItemsSource="{Binding Scanners}" DisplayMemberPath="Name" SelectedItem="{Binding SelectedScanner}" Margin="0,0,8,0" ToolTip="Which scanner heard it. Advertisement gaps only make sense for one source."/>
+                <Button Content="Refresh" Command="{Binding RefreshCommand}"/>
+                <Button Content="Open full history" Command="{Binding OpenHistoryCommand}"/>
+                <Button Content="Look up online" Command="{Binding LookUpOnlineCommand}" Visibility="{Binding CanLookUp, Converter={StaticResource BoolToVis}}" ToolTip="Opens your browser with a search made from the maker and name. The Bluetooth address is never sent."/>
+                <TextBlock Style="{StaticResource MutedText}" FontSize="11" VerticalAlignment="Center" Margin="8,0,0,0" Text="Look up online opens your browser; only the maker and name go into the search, never the address."/>
+            </WrapPanel>
+            <TextBlock Grid.Row="2" Text="{Binding Message}" TextWrapping="Wrap" VerticalAlignment="Top">
+                <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}"><Style.Triggers><DataTrigger Binding="{Binding HasDevice}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+            </TextBlock>
+            <Grid Grid.Row="2" Visibility="{Binding HasDevice, Converter={StaticResource BoolToVis}}">
+                <Grid.ColumnDefinitions><ColumnDefinition Width="360"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,12,0">
+                    <ScrollViewer VerticalScrollBarVisibility="Auto">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="WHAT IS THIS DEVICE"/>
+                            <ItemsControl ItemsSource="{Binding ProfileLines}">
+                                <ItemsControl.ItemTemplate><DataTemplate>
+                                    <StackPanel Margin="0,0,0,5"><TextBlock Text="{Binding Label}" Style="{StaticResource MutedText}" FontSize="11"/><TextBlock Text="{Binding Value}" TextWrapping="Wrap" FontSize="12"/></StackPanel>
+                                </DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource H2}" Text="FINDINGS"/>
+                            <ItemsControl ItemsSource="{Binding Findings}">
+                                <ItemsControl.ItemTemplate><DataTemplate><TextBlock Text="{Binding}" TextWrapping="Wrap" Margin="0,0,0,4" FontSize="12"/></DataTemplate></ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource H2}" Text="WHAT TO DO"/>
+                            <TextBlock Text="{Binding Recommendation}" TextWrapping="Wrap" FontSize="12"/>
+                        </StackPanel>
+                    </ScrollViewer>
+                </Border>
+                <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <TextBlock Text="{Binding Message}" TextWrapping="Wrap" Foreground="{StaticResource Warn}" Margin="0,0,0,8"/>
+                        <ItemsControl ItemsSource="{Binding StatLines}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <TextBlock TextWrapping="Wrap" Margin="0,0,0,3" FontSize="12"><Run Text="{Binding Label, Mode=OneWay}" Foreground="{StaticResource Muted}"/><Run Text="   "/><Run Text="{Binding Value, Mode=OneWay}"/></TextBlock>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource H2}" Text="SIGNAL OVER TIME (red bands: no advertisements heard while the scanner was listening)"/>
+                        <Border Style="{StaticResource Card}" Padding="6" Height="300">
+                            <lvc:CartesianChart Background="{StaticResource Panel}" Series="{Binding SignalSeries}" XAxes="{Binding SignalXAxes}" YAxes="{Binding SignalYAxes}" Sections="{Binding SignalSections}" LegendPosition="Bottom" LegendTextPaint="{Binding LegendPaint}" TooltipTextPaint="{Binding TooltipPaint}"/>
+                        </Border>
+                        <Grid Margin="0,12,0,0">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="12"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <StackPanel>
+                                <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="HOW OFTEN THE SIGNAL WAS AT EACH LEVEL"/>
+                                <Border Style="{StaticResource Card}" Padding="6" Height="200">
+                                    <lvc:CartesianChart Background="{StaticResource Panel}" Series="{Binding DistributionSeries}" XAxes="{Binding DistributionXAxes}" TooltipTextPaint="{Binding TooltipPaint}"/>
+                                </Border>
+                            </StackPanel>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="TIME BETWEEN ADVERTISEMENTS"/>
+                                <Border Style="{StaticResource Card}" Padding="6" Height="200">
+                                    <lvc:CartesianChart Background="{StaticResource Panel}" Series="{Binding IntervalSeries}" XAxes="{Binding IntervalXAxes}" TooltipTextPaint="{Binding TooltipPaint}"/>
+                                </Border>
+                                <TextBlock Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Text="{Binding IntervalNote}"/>
+                            </StackPanel>
+                        </Grid>
+                        <TextBlock Style="{StaticResource H2}" Text="SILENT PERIODS (scanner was listening)"/>
+                        <ItemsControl ItemsSource="{Binding Silences}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <TextBlock FontSize="12" Margin="0,0,0,3"><Run Text="{Binding When, Mode=OneWay}"/><Run Text="   for "/><Run Text="{Binding Length, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="   " /><Run Text="{Binding Levels, Mode=OneWay}" Foreground="{StaticResource Muted}"/></TextBlock>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource H2}" Text="SIGNAL DROPS AND RECOVERY"/>
+                        <ItemsControl ItemsSource="{Binding Recoveries}">
+                            <ItemsControl.ItemTemplate><DataTemplate>
+                                <TextBlock FontSize="12" Margin="0,0,0,3"><Run Text="{Binding When, Mode=OneWay}"/><Run Text="   "/><Run Text="{Binding Drop, Mode=OneWay}" FontWeight="SemiBold"/><Run Text="   "/><Run Text="{Binding Recovered, Mode=OneWay}" Foreground="{StaticResource Muted}"/></TextBlock>
+                            </DataTemplate></ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock Style="{StaticResource MutedText}" FontSize="11" Margin="0,12,0,12" TextWrapping="Wrap" Text="Breaks and red bands mean no advertisements were heard, which is not proof the device disconnected. RSSI is a relative signal level, not a distance."/>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Grid>
     </DataTemplate>
 
     <!-- ============ History ============ -->

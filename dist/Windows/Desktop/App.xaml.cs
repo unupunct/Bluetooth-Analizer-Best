@@ -121,6 +121,7 @@ public partial class App : System.Windows.Application
         sc.AddSingleton<DeviceAdminService>();
         sc.AddSingleton<HistoryQueries>();
         sc.AddSingleton<FaultQueries>();
+        sc.AddSingleton<SignalQueries>();
         sc.AddSingleton(new PairedPhoneStore(Path.Combine(paths.DataDir, "paired-phones.json")));
         sc.AddSingleton<PairingService>();
         sc.AddSingleton(new CertificateService(paths.DataDir));
@@ -146,6 +147,7 @@ public partial class App : System.Windows.Application
         sc.AddSingleton<InventoryViewModel>();
         sc.AddSingleton<HistoryViewModel>();
         sc.AddSingleton<FaultsViewModel>();
+        sc.AddSingleton<SignalAnalysisViewModel>();
         sc.AddSingleton<MobileDevicesViewModel>();
         sc.AddSingleton<EventLogViewModel>();
         sc.AddSingleton<ScannerViewModel>();

@@ -27,6 +27,7 @@
     <ProjectReference Include="..\Diagnostics\BluetoothFleetMonitor.Diagnostics.csproj" />
     <ProjectReference Include="..\Bluetooth\BluetoothFleetMonitor.Bluetooth.csproj" />
     <ProjectReference Include="..\Sync\BluetoothFleetMonitor.Sync.csproj" />
+    <ProjectReference Include="..\Desktop\BluetoothFleetMonitor.Desktop.csproj" />
   </ItemGroup>
 
 </Project>

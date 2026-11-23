@@ -26,7 +26,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _statusBar = "";
 
     public MainViewModel(DashboardViewModel dashboard, LiveMonitorViewModel live, InventoryViewModel inventory,
-        HistoryViewModel history, FaultsViewModel faults, MobileDevicesViewModel mobile, EventLogViewModel events, ScannerViewModel scanner, SettingsViewModel settings,
+        HistoryViewModel history, FaultsViewModel faults, SignalAnalysisViewModel analysis, MobileDevicesViewModel mobile, EventLogViewModel events, ScannerViewModel scanner, SettingsViewModel settings,
         SelectionService selection, ScanController scan, AppPaths paths)
     {
         _scan = scan;
@@ -42,7 +42,7 @@ public sealed partial class MainViewModel : ObservableObject
         Add("inventory", "Device Inventory", inventory);
         Add("faults", "Fault Detector", faults);
         Add("history", "Device History", history);
-        Todo("analysis", "Signal Analysis", "Phase 4", "Moving averages, volatility, advertisement intervals and recovery times.");
+        Add("analysis", "Signal Analysis", analysis);
         Todo("survey", "Signal Survey", "Phase 3", "Walk-around inspection results uploaded from the Android scanner.");
         Add("scanner", "Bluetooth Scanner", scanner);
         Todo("tests", "Connection Tests", "Phase 5", "Controlled, one-device-at-a-time connection tests with an explicit warning. Never automatic, never on every device.");
@@ -53,6 +53,7 @@ public sealed partial class MainViewModel : ObservableObject
         Add("settings", "Settings", settings);
 
         selection.OpenHistoryRequested += _ => Navigate("history");
+        selection.OpenAnalysisRequested += id => { Navigate("analysis"); _ = analysis.ShowAsync(id); };
         _statusBarPath = paths.DataDir;
         scan.Changed += UpdateStatusBar;
         UpdateStatusBar();

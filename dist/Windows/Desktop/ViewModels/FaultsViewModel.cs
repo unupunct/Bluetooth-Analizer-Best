@@ -252,6 +252,7 @@ public sealed partial class FaultsViewModel : ObservableObject
     }
 
     [RelayCommand] private void OpenHistory() { if (Selected is not null) _selection.OpenHistory(Selected.D.DeviceId); }
+    [RelayCommand] private void Analyse() { if (Selected is not null) _selection.OpenAnalysis(Selected.D.DeviceId); }
 
     public static string BandColour(HealthBand b) => b switch
     {

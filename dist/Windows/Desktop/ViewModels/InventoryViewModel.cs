@@ -82,6 +82,12 @@ public sealed partial class InventoryViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void Analyse()
+    {
+        if (Selected is not null) _selection.OpenAnalysis(Selected.Id);
+    }
+
+    [RelayCommand]
     private async Task ExportCsv()
     {
         var path = Dialogs.SaveFile("Export device inventory", $"devices-{DateTime.Now:yyyyMMdd}.csv", "CSV (*.csv)|*.csv");

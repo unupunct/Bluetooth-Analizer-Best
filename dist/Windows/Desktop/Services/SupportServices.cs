@@ -52,6 +52,8 @@ public sealed class SelectionService
     public Guid? SelectedDeviceId { get; private set; }
     public event Action<Guid>? OpenHistoryRequested;
     public void OpenHistory(Guid id) { SelectedDeviceId = id; OpenHistoryRequested?.Invoke(id); }
+    public event Action<Guid>? OpenAnalysisRequested;
+    public void OpenAnalysis(Guid id) { SelectedDeviceId = id; OpenAnalysisRequested?.Invoke(id); }
 }
 
 public static class Dialogs
