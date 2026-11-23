@@ -15,8 +15,8 @@ android {
         applicationId = "com.unupunct.fleetmonitor"
         minSdk = 29          // Android 10
         targetSdk = 35
-        versionCode = 2
-        versionName = "0.2.1"
+        versionCode = 3
+        versionName = "0.3.0"
     }
 
     buildTypes {
@@ -60,6 +60,7 @@ dependencies {
     ksp(libs.hilt.compiler)
     implementation(libs.hilt.navigation.compose)
     implementation(libs.kotlinx.coroutines.android)
+    implementation(libs.zxing.embedded)   // offline QR scanner (Apache 2.0); no Google services, no network
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)

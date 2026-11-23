@@ -370,6 +370,90 @@
         </Grid>
     </DataTemplate>
 
+    <!-- ============ Mobile Devices (phone sync) ============ -->
+    <DataTemplate DataType="{x:Type vm:MobileDevicesViewModel}">
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel Margin="20" MaxWidth="1100" HorizontalAlignment="Left">
+                <TextBlock Style="{StaticResource H1}" Text="Mobile Devices"/>
+                <TextBlock Style="{StaticResource MutedText}" TextWrapping="Wrap" Text="Pair an Android phone so what it scans arrives here. Everything stays on your local network: the PC listens over HTTPS with its own certificate, the phone checks that certificate's fingerprint, and each phone has its own revocable access token. Nothing goes to the internet."/>
+
+                <Border Style="{StaticResource Card}" Padding="16" Margin="0,14,0,0">
+                    <StackPanel>
+                        <CheckBox IsChecked="{Binding Enabled}" Content="Accept uploads from paired phones" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock Text="{Binding ServerStatus}" Margin="0,6,0,0" TextWrapping="Wrap">
+                            <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                <Setter Property="Foreground" Value="{StaticResource Muted}"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding ServerOk}" Value="True"><Setter Property="Foreground" Value="{StaticResource Good}"/></DataTrigger></Style.Triggers>
+                            </Style></TextBlock.Style>
+                        </TextBlock>
+                        <TextBlock Text="{Binding FirewallText}" Margin="0,6,0,0" TextWrapping="Wrap">
+                            <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource {x:Type TextBlock}}">
+                                <Setter Property="Foreground" Value="{StaticResource Warn}"/>
+                                <Style.Triggers><DataTrigger Binding="{Binding FirewallOk}" Value="True"><Setter Property="Foreground" Value="{StaticResource Muted}"/></DataTrigger></Style.Triggers>
+                            </Style></TextBlock.Style>
+                        </TextBlock>
+                        <StackPanel Orientation="Horizontal" Margin="0,8,0,0">
+                            <Button Content="Allow in Windows Firewall" Command="{Binding AllowFirewallCommand}"/>
+                            <Button Content="Check again" Command="{Binding RefreshFirewallCommand}"/>
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource MutedText}" FontSize="11" Margin="0,8,0,0" TextWrapping="Wrap" Text="Certificate fingerprint (SHA-256, the phone pins this):"/>
+                        <TextBlock Text="{Binding FingerprintText}" FontFamily="Consolas" FontSize="11" TextWrapping="Wrap"/>
+                    </StackPanel>
+                </Border>
+
+                <Border Style="{StaticResource Card}" Padding="16" Margin="0,12,0,0">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="PAIR A NEW PHONE"/>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource MutedText}" Text="This PC's address on the phone's network:" VerticalAlignment="Center" Margin="0,0,8,0"/>
+                            <ComboBox Width="170" ItemsSource="{Binding Addresses}" SelectedItem="{Binding SelectedAddress}"/>
+                            <Button Content="Create pairing code" Command="{Binding CreateInviteCommand}" Margin="12,0,0,0"/>
+                        </StackPanel>
+                        <Grid Margin="0,12,0,0" Visibility="{Binding HasInvite, Converter={StaticResource BoolToVis}}">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                            <Border Background="White" Padding="10" CornerRadius="6" VerticalAlignment="Top"><Image Source="{Binding Qr}" Width="220" Height="220" RenderOptions.BitmapScalingMode="NearestNeighbor"/></Border>
+                            <StackPanel Grid.Column="1" Margin="18,0,0,0">
+                                <TextBlock Text="On the phone: open Fleet Monitor, More, Sync status, Scan pairing code." TextWrapping="Wrap"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,10,0,0" Text="Code (also inside the QR):"/>
+                                <TextBlock Text="{Binding InviteCode}" FontFamily="Consolas" FontSize="30" FontWeight="SemiBold"/>
+                                <TextBlock Text="{Binding InviteCountdown}" Style="{StaticResource MutedText}"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,12,0,0" TextWrapping="Wrap" FontSize="11" Text="No camera? Copy this link, send it to the phone and open it there; it opens the app and asks you to confirm."/>
+                                <TextBox Text="{Binding InviteLink, Mode=OneWay}" IsReadOnly="True" FontFamily="Consolas" FontSize="10" TextWrapping="Wrap" Margin="0,4,0,6"/>
+                                <Button Content="Copy link" Command="{Binding CopyLinkCommand}" HorizontalAlignment="Left"/>
+                                <TextBlock Style="{StaticResource MutedText}" Margin="0,10,0,0" TextWrapping="Wrap" FontSize="11" Text="One use, five minutes. Anyone who sees this code in that time could pair, so show it only to your own phone."/>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Style="{StaticResource H2}" Margin="0,18,0,6" Text="PAIRED PHONES"/>
+                <TextBlock Text="No phone paired yet.">
+                    <TextBlock.Style><Style TargetType="TextBlock" BasedOn="{StaticResource MutedText}"><Style.Triggers><DataTrigger Binding="{Binding HasPhones}" Value="True"><Setter Property="Visibility" Value="Collapsed"/></DataTrigger></Style.Triggers></Style></TextBlock.Style>
+                </TextBlock>
+                <ItemsControl ItemsSource="{Binding Phones}">
+                    <ItemsControl.ItemTemplate><DataTemplate>
+                        <Border Style="{StaticResource Card}" Padding="14" Margin="0,0,0,8">
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel>
+                                    <TextBlock FontSize="15" FontWeight="SemiBold"><Run Text="{Binding Name, Mode=OneWay}"/><Run Text="  |  " Foreground="{StaticResource Muted}"/><Run Text="{Binding StatusText, Mode=OneWay}" Foreground="{StaticResource Muted}"/></TextBlock>
+                                    <TextBlock Style="{StaticResource MutedText}" Text="{Binding PairedText}"/>
+                                    <TextBlock Style="{StaticResource MutedText}" Text="{Binding LastUploadText}"/>
+                                    <TextBlock Style="{StaticResource MutedText}" Text="{Binding ReceivedText}"/>
+                                    <TextBlock Text="{Binding ClockText}" Foreground="{Binding ClockBrush}" TextWrapping="Wrap"/>
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="Revoke" VerticalAlignment="Top" Command="{Binding DataContext.RevokeCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}" CommandParameter="{Binding}">
+                                    <Button.Style><Style TargetType="Button" BasedOn="{StaticResource {x:Type Button}}"><Style.Triggers><DataTrigger Binding="{Binding Revoked}" Value="True"><Setter Property="IsEnabled" Value="False"/></DataTrigger></Style.Triggers></Style></Button.Style>
+                                </Button>
+                            </Grid>
+                        </Border>
+                    </DataTemplate></ItemsControl.ItemTemplate>
+                </ItemsControl>
+                <TextBlock Text="{Binding Message}" Foreground="{StaticResource Warn}" Margin="0,8,0,0" TextWrapping="Wrap"/>
+            </StackPanel>
+        </ScrollViewer>
+    </DataTemplate>
+
     <!-- ============ History ============ -->
     <DataTemplate DataType="{x:Type vm:HistoryViewModel}">
         <Grid Margin="20">

@@ -37,6 +37,14 @@ public static class IdentityResolver
                 : new IdentityDecision(null, fingerprint, 1.0, "New stable address", address);
         }
 
+        // A scanner that cannot tell the address type (Android hides it) still reports the same over-the-air address the PC heard.
+        // If that exact address is already a stable identifier, it is that device.
+        if (ad.AddressKind == AddressKind.Unknown)
+        {
+            var stable = known.FirstOrDefault(k => k.Identifiers.Any(i => i.Type == IdentifierTypes.StableAddress && i.Value == address));
+            if (stable is not null) return new IdentityDecision(stable.DeviceId, fingerprint, 0.95, "Address matches a known stable address", null);
+        }
+
         // Private or unknown address: it may rotate at any time.
         var seen = known.FirstOrDefault(k => k.Identifiers.Any(i => i.Type == IdentifierTypes.RotatingAddress && i.Value == address));
         if (seen is not null)

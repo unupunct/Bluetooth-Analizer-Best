@@ -28,6 +28,9 @@ public sealed class AppSettings
     public int PresenceWindowSeconds { get; set; } = 120;
     public bool AutoStartScan { get; set; } = true;
     public Guid ScannerId { get; set; } = Guid.NewGuid();
+    /// <summary>Accept uploads from paired phones. Off by default: nothing listens on the network until the user turns it on.</summary>
+    public bool SyncEnabled { get; set; }
+    public int SyncPort { get; set; } = 47821;
 }
 
 public sealed class SettingsStore

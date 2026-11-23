@@ -203,6 +203,47 @@ public static class Headless
         return failures == 0 ? 0 : 4;
     }
 
+
+    // ---------------------------------------------------------------- sync test
+
+    /// <summary>
+    /// Runs the sync server on a throw-away data folder so a real phone can pair and upload without touching the real database.
+    /// Writes the pairing link to the output file at once, waits, then writes what arrived. Never starts the PC's own scanner.
+    /// </summary>
+    public static async Task<int> SyncTestAsync(AppPaths paths, int seconds, string outFile, string? host, int port)
+    {
+        await using var sp = App.BuildServices(paths, new ConfigurationBuilder().Build());
+        await App.PrepareDatabaseAsync(sp);
+        var server = sp.GetRequiredService<BluetoothFleetMonitor.Sync.SyncServer>();
+        await server.StartAsync(port);
+        if (!server.IsRunning) { await File.WriteAllTextAsync(outFile, "Server did not start: " + server.LastError); return 2; }
+        var cert = sp.GetRequiredService<BluetoothFleetMonitor.Sync.CertificateService>();
+        var ip = host ?? BluetoothFleetMonitor.Sync.LocalNetwork.Addresses().FirstOrDefault() ?? "127.0.0.1";
+        var (code, _) = sp.GetRequiredService<BluetoothFleetMonitor.Sync.PairingService>().CreateInvite();
+        var link = BluetoothFleetMonitor.Sync.PairingLink.Build(ip, server.Port, cert.Fingerprint, code, server.ServerName);
+        await File.WriteAllTextAsync(outFile, "LINK " + link + Environment.NewLine);
+        var phones = sp.GetRequiredService<BluetoothFleetMonitor.Sync.PairedPhoneStore>();
+        var sw = Stopwatch.StartNew();
+        while (sw.Elapsed < TimeSpan.FromSeconds(seconds)) await Task.Delay(500);
+        await server.StopAsync();
+
+        var factory = sp.GetRequiredService<IDbContextFactory<FleetDbContext>>();
+        await using var db = factory.CreateDbContext();
+        var sb = new StringBuilder();
+        sb.AppendLine("LINK " + link);
+        sb.AppendLine($"Sync test, {seconds} s. Paired phones: {phones.All().Count}");
+        foreach (var p in phones.All()) sb.AppendLine($"  {p.Name}: received {p.ObservationsReceived}, last upload {p.LastUploadUtc:HH:mm:ss}, clock skew {p.LastClockSkewSeconds} s, revoked {p.Revoked}");
+        sb.AppendLine($"Observations stored: {await db.Observations.CountAsync()} (distinct devices {await db.Devices.CountAsync()})");
+        foreach (var g in await db.Observations.GroupBy(o => o.Source).Select(g => new { g.Key, N = g.Count(), Min = g.Min(o => o.TimestampUtc), Max = g.Max(o => o.TimestampUtc) }).ToListAsync())
+            sb.AppendLine($"  source {g.Key}: {g.N} observations, {g.Min:yyyy-MM-dd HH:mm:ss} .. {g.Max:HH:mm:ss}");
+        sb.AppendLine($"Sessions: {await db.InspectionSessions.CountAsync()}, connection tests: {await db.ConnectionTests.CountAsync()}");
+        foreach (var e in await db.ApplicationEvents.Where(e => e.Source == "Sync").OrderBy(e => e.TimestampUtc).ToListAsync())
+            sb.AppendLine($"  event {e.EventType} [{e.Severity}]: {e.Message}");
+        await File.WriteAllTextAsync(outFile, sb.ToString());
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        return 0;
+    }
+
     // ---------------------------------------------------------------- demo screenshots
 
     private static readonly (string Prefix, int Count, ushort Company, string Category, string Room)[] DemoKinds =
@@ -314,13 +355,15 @@ public static class Headless
             faults.LoadAnalysis(BluetoothFleetMonitor.Application.Diagnostics.FaultAnalyzer.Analyze(ev, cover, wnd, faults.Settings), "Last 7 days");
         }
 
+        sp.GetRequiredService<MobileDevicesViewModel>().LoadDemo();
+
         var window = sp.GetRequiredService<MainWindow>();
         window.Left = -20000; window.Top = 0; window.ShowInTaskbar = false; window.Width = 1400;
         window.Show();
         var main = sp.GetRequiredService<MainViewModel>();
         main.StatusBar = "DEMO DATA: fictional devices and values for documentation. Not real measurements.";
         var selection = sp.GetRequiredService<SelectionService>();
-        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640), ("faults", "windows-fault-detector.png", 900) };
+        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640), ("faults", "windows-fault-detector.png", 900), ("mobile", "windows-mobile-devices.png", 1060) };
         var report = new StringBuilder("Demo screenshots (fictional data)\n");
         var failures = 0;
         foreach (var (key, file, height) in pages)

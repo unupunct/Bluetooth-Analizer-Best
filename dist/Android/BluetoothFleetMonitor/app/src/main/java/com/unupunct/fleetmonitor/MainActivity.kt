@@ -42,10 +42,24 @@ import dagger.hilt.android.AndroidEntryPoint
 
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
+    @javax.inject.Inject lateinit var sync: com.unupunct.fleetmonitor.sync.SyncManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        offerLink(intent)
         setContent { FleetTheme { AppRoot() } }
+    }
+
+    override fun onNewIntent(intent: android.content.Intent) {
+        super.onNewIntent(intent)
+        offerLink(intent)
+    }
+
+    /** A bfm://pair link only ever opens the confirmation on the Sync screen; it never pairs by itself. */
+    private fun offerLink(i: android.content.Intent?) {
+        val data = i?.data ?: return
+        if (data.scheme == "bfm") { sync.offer(data.toString()); i.data = null }
     }
 }
 
@@ -62,6 +76,8 @@ private fun AppRoot() {
     val entry by nav.currentBackStackEntryAsState()
     val current = entry?.destination?.route
     fun go(route: String) = nav.navigate(route) { launchSingleTop = true }
+    val pendingPair by vm.sync.pendingPair.collectAsState()
+    androidx.compose.runtime.LaunchedEffect(pendingPair) { if (pendingPair != null && nav.currentDestination?.route != "sync") go("sync") }
 
     Scaffold(
         containerColor = FleetColors.Bg,

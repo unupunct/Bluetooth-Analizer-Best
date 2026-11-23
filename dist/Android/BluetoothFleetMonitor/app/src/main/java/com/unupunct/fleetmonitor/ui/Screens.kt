@@ -26,6 +26,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.lifecycle.Lifecycle
+import kotlinx.coroutines.launch
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.unupunct.fleetmonitor.bluetooth.Permissions
@@ -456,15 +457,80 @@ private fun MoreNote(total: Int, shown: Int) { if (total > shown) Text("+ ${tota
 fun SyncScreen(vm: FleetViewModel) {
     val total by vm.observationCount.collectAsState()
     val pending by vm.pendingUploads.collectAsState()
+    val st by vm.sync.state.collectAsState()
+    val link by vm.sync.pendingPair.collectAsState()
+    val msg by vm.sync.pairMessage.collectAsState()
+    val scope = rememberCoroutineScope()
+    var pasted by remember { mutableStateOf("") }
+    var showUnpair by remember { mutableStateOf(false) }
+    val scanner = rememberLauncherForActivityResult(com.journeyapps.barcodescanner.ScanContract()) { r ->
+        r.contents?.let { vm.sync.offer(it) }
+    }
+
+    link?.let { l ->
+        AlertDialog(
+            onDismissRequest = { vm.sync.dismissPending() },
+            title = { Text("Pair with ${l.serverName}?") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Address: ${l.host}:${l.port}")
+                    Text("After pairing, this phone sends what it scans to that PC over your local network. Only confirm if this is your own PC and the fingerprint below matches the one on its Mobile Devices page.", fontSize = 13.sp)
+                    Text(l.fingerprintDisplay, fontSize = 11.sp, color = FleetColors.Muted, fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace)
+                }
+            },
+            confirmButton = { Button(onClick = { scope.launch { vm.sync.confirmPairing() } }) { Text("Pair") } },
+            dismissButton = { TextButton(onClick = { vm.sync.dismissPending() }) { Text("Cancel") } },
+        )
+    }
+    if (showUnpair) AlertDialog(
+        onDismissRequest = { showUnpair = false },
+        title = { Text("Unpair from ${st.serverName}?") },
+        text = { Text("Uploads stop. Data already on this phone and on the PC is kept. You can pair again with a new code.") },
+        confirmButton = { Button(onClick = { vm.sync.unpair(); showUnpair = false }) { Text("Unpair") } },
+        dismissButton = { TextButton(onClick = { showUnpair = false }) { Text("Cancel") } },
+    )
+
     Screen("Sync status") {
         Card2 {
-            Label("Windows server"); Text("Not paired", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text("Pairing by QR code and uploading to the Windows app arrive in Phase 3. Nothing leaves this phone until then.", color = FleetColors.Muted, fontSize = 13.sp)
+            Label("Windows server")
+            if (st.paired) {
+                Text(st.serverName.ifBlank { st.host }, fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                Text("${st.host}:${st.port}  |  certificate pinned", color = FleetColors.Muted, fontSize = 12.sp)
+                Text(st.lastMessage.ifBlank { "Paired." }, fontSize = 13.sp)
+                st.lastSyncMs?.let { Text("Last sync ${fmtTime(it, "dd MMM HH:mm:ss")}", color = FleetColors.Muted, fontSize = 12.sp) }
+                st.clockSkewSeconds?.let { k ->
+                    if (kotlin.math.abs(k) > 2) Text("This phone's clock differs from the PC by ${"%.1f".format(kotlin.math.abs(k))} s (${if (k > 0) "behind" else "ahead"}). Times are kept as recorded here; set the phone to automatic time.", color = FleetColors.Warn, fontSize = 12.sp)
+                }
+                st.lastError?.let { Text(it, color = FleetColors.Warn, fontSize = 13.sp) }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(top = 8.dp)) {
+                    Button(onClick = { scope.launch { vm.sync.syncNow() } }, enabled = !st.syncing) { Text(if (st.syncing) "Syncing..." else "Sync now") }
+                    OutlinedButton(onClick = { showUnpair = true }) { Text("Unpair") }
+                }
+                Row(Modifier.fillMaxWidth().clickable { vm.sync.setAutoSync(!st.autoSync) }, verticalAlignment = Alignment.CenterVertically) {
+                    Switch(st.autoSync, { vm.sync.setAutoSync(it) })
+                    Text("  Upload automatically when new data is waiting", fontSize = 13.sp)
+                }
+            } else {
+                Text("Not paired", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
+                st.lastError?.let { Text(it, color = FleetColors.Warn, fontSize = 13.sp) }
+                Text("On the PC open Mobile Devices, turn sync on and create a pairing code. Then scan its QR code here. The phone and the PC must be on the same Wi-Fi or network.", color = FleetColors.Muted, fontSize = 13.sp)
+                Button(onClick = {
+                    scanner.launch(com.journeyapps.barcodescanner.ScanOptions().setDesiredBarcodeFormats(com.journeyapps.barcodescanner.ScanOptions.QR_CODE)
+                        .setPrompt("Point at the QR code on the PC (Mobile Devices page)").setBeepEnabled(false).setOrientationLocked(false))
+                }, modifier = Modifier.padding(top = 8.dp)) { Text("Scan pairing code") }
+                OutlinedTextField(pasted, { pasted = it }, Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("Or paste the pairing link") })
+                OutlinedButton(onClick = { if (vm.sync.offer(pasted)) pasted = "" }, enabled = pasted.isNotBlank()) { Text("Use link") }
+            }
+            msg?.let { Text(it, color = FleetColors.Accent, fontSize = 13.sp) }
         }
         Card2 {
             Label("Stored on this phone"); Text("$total windows", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
             Label("Waiting to be uploaded"); Text("$pending windows", fontSize = 20.sp, fontWeight = FontWeight.SemiBold)
-            Text("Windows that were never acknowledged by the server are never deleted automatically.", color = FleetColors.Muted, fontSize = 12.sp)
+            Text("A window is only marked as uploaded after the PC confirms it stored it. Nothing is deleted from the phone by syncing, and a failed upload is retried.", color = FleetColors.Muted, fontSize = 12.sp)
+        }
+        Card2 {
+            Label("What is sent")
+            Text("Only what this app scanned: device address, signal strength, advertised name and data, session names and your connection-test results. Sent over HTTPS to the PC you paired, never anywhere else. The app has no ads or analytics.", color = FleetColors.Muted, fontSize = 12.sp)
         }
     }
 }
@@ -514,8 +580,8 @@ fun SettingsScreen(vm: FleetViewModel) {
             Text("Replaces the real devices on the radar and in the lists with made-up ones, so the app can be photographed without showing real surroundings. A DEMO DATA banner stays on every screen while it is on. Nothing is stored or uploaded.", color = FleetColors.Muted, fontSize = 12.sp)
         }
         Card2 {
-            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.2.1")
-            Text("Local only: no ads, no analytics, no cloud. Needs no internet access in this version.", color = FleetColors.Muted, fontSize = 12.sp)
+            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.3.0")
+            Text("Local only: no ads, no analytics, no cloud. The only network use is uploading to the Windows PC you paired, over HTTPS on your own network.", color = FleetColors.Muted, fontSize = 12.sp)
         }
     }
 }

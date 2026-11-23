@@ -100,4 +100,4 @@ cd dist/Android/BluetoothFleetMonitor
 - Accepting SDK licenses is the user's decision. `yes | sdkmanager --licenses` works in Git Bash but accepts ALL pending licenses, so only do it with their OK and delete any license files you were not asked to accept.
 - The emulator does not work on this kind of machine; runtime checks need a real phone over ADB (`adb devices` must show `device`, not `unauthorized`).
 - Domain logic (`domain/`) is pure Kotlin and unit tested. `FingerprintTest` pins the same values as the C# `Fingerprint_matches_the_cross_platform_reference_vectors`; change one, change both.
-- Never add ad, analytics or telemetry libraries. Phase 2 deliberately has no `INTERNET` permission; Phase 3 adds it for the local sync only.
+- Never add ad, analytics or telemetry libraries. The Android app declares `INTERNET` since v0.3.0 solely for the local sync to the paired PC (HTTPS, pinned certificate); it must never contact anything else. Phase 2 (v0.2.x) had no `INTERNET` permission.

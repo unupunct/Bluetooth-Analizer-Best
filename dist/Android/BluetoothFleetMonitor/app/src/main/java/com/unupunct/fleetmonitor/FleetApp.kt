@@ -12,7 +12,14 @@ import dagger.hilt.components.SingletonComponent
 import javax.inject.Singleton
 
 @HiltAndroidApp
-class FleetApp : Application()
+class FleetApp : Application() {
+    @javax.inject.Inject lateinit var sync: com.unupunct.fleetmonitor.sync.SyncManager
+
+    override fun onCreate() {
+        super.onCreate()
+        sync.start()   // uploads to a paired PC in the background while the process is alive (a running scan keeps it alive)
+    }
+}
 
 @Module
 @InstallIn(SingletonComponent::class)

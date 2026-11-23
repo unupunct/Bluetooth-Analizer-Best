@@ -26,7 +26,7 @@ public sealed partial class MainViewModel : ObservableObject
     [ObservableProperty] private string _statusBar = "";
 
     public MainViewModel(DashboardViewModel dashboard, LiveMonitorViewModel live, InventoryViewModel inventory,
-        HistoryViewModel history, FaultsViewModel faults, EventLogViewModel events, ScannerViewModel scanner, SettingsViewModel settings,
+        HistoryViewModel history, FaultsViewModel faults, MobileDevicesViewModel mobile, EventLogViewModel events, ScannerViewModel scanner, SettingsViewModel settings,
         SelectionService selection, ScanController scan, AppPaths paths)
     {
         _scan = scan;
@@ -47,7 +47,7 @@ public sealed partial class MainViewModel : ObservableObject
         Add("scanner", "Bluetooth Scanner", scanner);
         Todo("tests", "Connection Tests", "Phase 5", "Controlled, one-device-at-a-time connection tests with an explicit warning. Never automatic, never on every device.");
         Todo("usb", "USB Monitor", "Phase 6", "USB receiver arrival, removal and re-enumeration events.");
-        Todo("mobile", "Mobile Devices", "Phase 3", "Paired Android scanners, pairing QR code and token management.");
+        Add("mobile", "Mobile Devices", mobile);
         Add("events", "Event Log", events);
         Todo("reports", "Reports", "Phase 6", "Exportable diagnostic reports with optional anonymisation of Bluetooth addresses.");
         Add("settings", "Settings", settings);

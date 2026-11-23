@@ -79,7 +79,7 @@ NOT verified: Connect and test (code complete, but I did not connect to any of y
 
 ## Not built yet (by design)
 
-Fault detection engine, health score, Worst Offenders, signal analysis (Phase 4); LAN API with QR pairing and sync (Phase 3); active connection tests (Phase 5); USB monitor, reports, in-app restore, release packaging (Phase 6); iOS (deferred; needs a Mac). Their navigation entries are marked with their phase and show "Not implemented yet". The Health column shows "-" instead of a number.
+Signal Analysis and Signal Survey pages, presence-event history, the phone-side health view; active connection tests (Phase 5); USB monitor, reports, in-app restore, release packaging (Phase 6); iOS (deferred; needs a Mac). Their navigation entries are marked with their phase and show "Not implemented yet". The Health column shows "-" instead of a number.
 
 ## Known gaps inside Phase 1
 
@@ -91,3 +91,14 @@ Fault detection engine, health score, Worst Offenders, signal analysis (Phase 4)
 ## Build errors / outstanding bugs
 
 None known. Bugs found and fixed during Phase 1: ComboBox showing type names, filters leaking between pages (shared collection view), `CollectionViewSource` NRE in DataGrid, async-dispose crash on exit, EF SQL logged at Info level, Dashboard property hiding the `ScannerState` enum.
+
+
+## Phase 3 sync and Phase 4 fault detection (v0.2.1 and v0.3.0)
+
+Built: Windows Fault Detector / Worst Offenders (`Application/Diagnostics/FaultAnalyzer.cs`, `Database/FaultQueries.cs`): explainable 0-100 score from presence, signal stability, quick dropouts, RSSI trend and connection tests; confidence separate; scanner-coverage aware; shared outages attributed to the environment; adjustable weights. 21 tests, plus one SQL-backed test. Thresholds are engineering starting points, not validated failure rates, and the page has only seen fictional demo data and short real scans.
+
+Built: phone sync. Windows `Sync` project (Kestrel HTTPS, self-signed certificate created on first run, pinned by fingerprint; one-time 8-digit pairing codes valid 5 minutes with a lock-out after 5 wrong guesses; per-phone tokens stored hashed; revoke; `/api/v1/hello`, `/pair`, `/upload`), Mobile Devices page (QR code, copyable link, Windows Firewall rule through an administrator prompt, paired phones with clock difference), Android `sync` package (pinned HTTPS client, `bfm://pair` deep link with confirmation dialog, QR scanner, auto-sync with backoff). Android now declares INTERNET, ACCESS_NETWORK_STATE and CAMERA (QR only); it still has no ad or analytics libraries.
+
+**Verified:** 12 Windows tests against a real loopback Kestrel server (pinning, pairing, auth, revocation, idempotency, original times, rejected garbage, same device heard by PC and phone, sessions and connection tests, clock skew); 3 Android parser tests; and one real run on the Galaxy A52s through `adb reverse`: deep link, confirmation dialog, pairing, then 13,567 real windows (335 devices) uploaded in 28 batches, all stored with Source Android and original timestamps, the session and the connection test arrived, clock skew (6.4 s behind) reported, 0 left pending.
+
+**NOT verified:** a real Wi-Fi path with the Windows Firewall rule (the tunnel bypasses the firewall and the network); the camera QR scan (the link was opened through the deep link instead); several phones at once; very long offline queues; a PC address change after pairing (the phone keeps the old address; re-pair); WorkManager-style uploads with the app closed (not built).

@@ -29,6 +29,8 @@ public sealed class ObservationPipeline
     private readonly Channel<BleAdvertisement> _channel;
     private readonly Dictionary<Guid, KnownDevice> _known = new();
 
+    private readonly SemaphoreSlim _gate = new(1, 1);   // the identity index is not thread-safe: the run loop and uploads take turns
+    private bool _knownLoaded;
     private long _overflowed;
     private long _overflowReported;
     private long _stored;
@@ -69,7 +71,8 @@ public sealed class ObservationPipeline
 
     public async Task RunAsync(CancellationToken ct)
     {
-        await ReloadKnownAsync();
+        await _gate.WaitAsync();
+        try { await ReloadKnownAsync(); } finally { _gate.Release(); }
         var reader = _channel.Reader;
 
         while (true)
@@ -96,10 +99,44 @@ public sealed class ObservationPipeline
 
     private async Task DrainAndFlushAsync(ChannelReader<BleAdvertisement> reader)
     {
-        var batch = new List<ProcessedObservation>(Math.Min(_options.BatchSize, Math.Max(reader.Count, 1)));
-        while (batch.Count < _options.BatchSize && reader.TryRead(out var ad))
-            batch.Add(Process(ad));
-        if (batch.Count > 0) await FlushAsync(batch);
+        await _gate.WaitAsync();
+        try
+        {
+            var batch = new List<ProcessedObservation>(Math.Min(_options.BatchSize, Math.Max(reader.Count, 1)));
+            while (batch.Count < _options.BatchSize && reader.TryRead(out var ad))
+                batch.Add(Process(ad));
+            if (batch.Count > 0) await FlushAsync(batch);
+        }
+        finally { _gate.Release(); }
+    }
+
+    /// <summary>
+    /// Stores observations uploaded by another scanner (a paired phone) through the same identity resolution as local ones.
+    /// Returns only after they are durably written, so the caller can acknowledge the upload. Duplicates (same observation id) are skipped.
+    /// Throws if the write fails, so the sender keeps its data and retries.
+    /// </summary>
+    public async Task<int> IngestAsync(Guid scannerId, IReadOnlyList<BleAdvertisement> ads, CancellationToken ct = default)
+    {
+        if (ads.Count == 0) return 0;
+        await _gate.WaitAsync(ct);
+        try
+        {
+            if (!_knownLoaded) await ReloadKnownAsync();   // an upload can arrive before this PC ever started its own scan
+            var batch = ads.OrderBy(a => a.ObservedUtc).Select(Process).ToList();
+            try
+            {
+                var stored = await _store.SaveBatchAsync(scannerId, batch, ct);
+                Interlocked.Add(ref _stored, stored);
+                try { BatchStored?.Invoke(batch); } catch (Exception ex) { _log?.LogError(ex, "BatchStored handler failed"); }
+                return stored;
+            }
+            catch
+            {
+                await ReloadKnownAsync();   // the index may now hold devices that were never saved
+                throw;
+            }
+        }
+        finally { _gate.Release(); }
     }
 
     private ProcessedObservation Process(BleAdvertisement ad)
@@ -166,6 +203,7 @@ public sealed class ObservationPipeline
             var known = await _store.LoadKnownDevicesAsync(CancellationToken.None);
             _known.Clear();
             foreach (var k in known) _known[k.DeviceId] = new KnownDevice(k.DeviceId, k.Identifiers.ToList());
+            _knownLoaded = true;
         }
         catch (Exception ex)
         {

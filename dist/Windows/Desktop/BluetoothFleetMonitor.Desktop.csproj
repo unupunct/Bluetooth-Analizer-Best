@@ -2,6 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\Database\BluetoothFleetMonitor.Database.csproj" />
+    <ProjectReference Include="..\Sync\BluetoothFleetMonitor.Sync.csproj" />
     <ProjectReference Include="..\Diagnostics\BluetoothFleetMonitor.Diagnostics.csproj" />
     <ProjectReference Include="..\Bluetooth\BluetoothFleetMonitor.Bluetooth.csproj" />
     <ProjectReference Include="..\UsbMonitoring\BluetoothFleetMonitor.UsbMonitoring.csproj" />
@@ -9,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="CommunityToolkit.Mvvm" Version="8.4.2" />
+    <PackageReference Include="QRCoder" Version="1.6.0" />
     <PackageReference Include="LiveChartsCore.SkiaSharpView.WPF" Version="2.2.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.15" />
     <PackageReference Include="Serilog.Extensions.Hosting" Version="11.0.0" />

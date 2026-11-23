@@ -2,13 +2,17 @@
 
 A local-only system for finding unreliable Bluetooth / BLE devices across a fleet of 170+ devices: a Windows command center that stores everything, plus a phone app that scans on the move and syncs to it over the local network. No cloud, no ads, no telemetry, no subscriptions.
 
-> **Status: early development (Phase 2 of 6, pre-release v0.2.1).** The Windows app builds, runs, and passes 88 automated tests, and its passive BLE scanner has been verified with a real radio (1,067 advertisements from 56 devices in 30 s). The Android app builds, passes its unit tests and has scanned on a real phone (Galaxy A52s, Android 14), though not every feature is verified yet; phone-to-Windows sync does not exist yet. The Windows Fault Detector (health score, Worst Offenders) is built and unit-tested, but only exercised on fictional demo data and short real scans so far: its thresholds are engineering starting points, not validated failure rates. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
+> **Status: early development (Phase 3 of 6, pre-release v0.3.0).** The Windows app builds, runs, and passes 100 automated tests, and its passive BLE scanner has been verified with a real radio (1,067 advertisements from 56 devices in 30 s). The Android app builds, passes its unit tests and has scanned on a real phone (Galaxy A52s, Android 14), though not every feature is verified yet; Phone-to-Windows sync (QR pairing, HTTPS with a pinned certificate, idempotent upload) is built, unit/integration-tested, and was verified once with a real phone and real data (13,567 windows from 335 devices) through an `adb reverse` tunnel; it has not yet been run across a real Wi-Fi network with the Windows Firewall rule, which is the step you do on your own network. The Windows Fault Detector (health score, Worst Offenders) is built and unit-tested, but only exercised on fictional demo data and short real scans so far: its thresholds are engineering starting points, not validated failure rates. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
 
 ## Screenshots
 
 All screenshots use **fictional demo devices** (Windows: `--demo-shots`; Android: Settings > Demo data) and are labelled "DEMO DATA" in the app. They are not real measurements.
 
 ![Windows dashboard](docs/screenshots/windows-dashboard.png)
+
+Mobile Devices page: pair a phone by QR code, see paired phones, upload counts and clock differences:
+
+![Mobile Devices](docs/screenshots/windows-mobile-devices.png)
 
 Fault Detector, ranking devices by evidence and explaining every score:
 
@@ -29,7 +33,7 @@ Fault Detector, ranking devices by evidence and explaining every score:
 Pre-release builds are on the [Releases page](https://github.com/unupunct/Bluetooth-Analizer-Best/releases). Pre-release means rough edges: see `dist/IMPLEMENTATION_STATUS.md` for what is verified.
 
 - **Windows 10/11 (x64):** `BluetoothFleetMonitor-<version>-win-x64.exe`, a single self-contained file (no .NET install needed). It is not code-signed, so Windows SmartScreen will warn: choose "More info" > "Run anyway".
-- **Android 10+:** `BluetoothFleetMonitor-<version>-android-debug.apk`. It is signed with a debug key, not a Play Store key: allow "install unknown apps" for your file manager, install, and expect Play Protect to ask. The app has no internet permission.
+- **Android 10+:** `BluetoothFleetMonitor-<version>-android-debug.apk`. It is signed with a debug key, not a Play Store key: allow "install unknown apps" for your file manager, install, and expect Play Protect to ask. Since v0.3.0 it has the `INTERNET` permission, used **only** to upload to the PC you pair (HTTPS, pinned certificate, your own network); v0.2.x had none. The app has no internet permission.
 - Check the files against `SHA256SUMS.txt` from the same release.
 
 ## Planned components
@@ -48,7 +52,7 @@ Pre-release builds are on the [Releases page](https://github.com/unupunct/Blueto
 | Device identity | Never MAC-only (random addresses); no automatic merge on equal names |
 | Fault detection (Phase 4, Windows done) | Presence gaps, RSSI stability, shared-outage correlation, explainable health score 0-100 with separate confidence, adjustable weights |
 | Worst Offenders | Devices ranked by evidence, with the reason shown |
-| Offline sync | Phone queues observations and uploads to Windows with original timestamps |
+| Phone sync (Phase 3, built) | QR pairing, per-phone revocable token, HTTPS with a pinned self-signed certificate, batches of 500, idempotent, original timestamps kept, clock difference reported. Needs the same network and a Windows Firewall rule (the app adds it after an administrator prompt) |
 | Active connection tests | Only on a device you select, after a warning |
 | USB monitor | Receiver arrival/removal events |
 

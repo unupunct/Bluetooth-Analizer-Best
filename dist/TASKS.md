@@ -96,17 +96,17 @@ Un task e bifat doar după ce compilează, are teste unde se poate și a fost ve
 
 ## Faza 3 — Legătura Windows ↔ Android
 
-- [ ] Server ASP.NET Core local în aplicația Windows, port configurabil, legat doar de rețeaua locală
-- [ ] Endpoint-uri `/api/v1/...` (health, pair, scanners, observations/batch, inspection-sessions, devices, sync/status, events)
+- [x] Server ASP.NET Core (Kestrel) local în aplicația Windows, HTTPS, port 47821 (configurabil în settings.json), pornit doar când utilizatorul îl activează
+- [~] Endpoint-uri `/api/v1/...`: făcute hello, pair, upload (observații + sesiuni + teste de conectare într-un lot); lipsesc scanners/devices/sync-status/events separate
 - [ ] Swagger în modul development
-- [ ] Pairing cu cod QR + token unic per telefon
-- [ ] Revocare token, pairing manual, mai multe telefoane
-- [ ] Validare cereri, rate limiting, erori structurate
-- [ ] Upload în loturi, idempotent (fără dubluri), confirmare de la server
-- [ ] Coadă offline pe Android (WorkManager), reîncercări
-- [ ] Ora observației păstrată separat de ora uploadului și a procesării
-- [ ] Opțiune HTTPS cu certificat local
-- [ ] Teste: autentificare, sincronizare, recuperare offline
+- [x] Pairing cu cod QR (cod de 8 cifre, o singură folosire, 5 minute) + token unic per telefon (stocat doar hash-uit pe PC)
+- [x] Revocare token, pairing manual (link lipit / link bfm:// deschis pe telefon), mai multe telefoane
+- [~] Validare cereri + blocare după 5 coduri greșite, erori JSON; rate limiting general lipsește
+- [x] Upload în loturi de 500, idempotent (id observație), marcat trimis doar după 200 de la server
+- [~] Coadă offline pe Android cu reîncercări și backoff, dar fără WorkManager (rulează cât timp procesul aplicației e viu)
+- [x] Ora observației păstrată separat de ora uploadului și a procesării; decalajul ceasului telefonului e raportat, nu corectat
+- [x] HTTPS cu certificat local auto-semnat, fixat prin amprentă (din QR)
+- [x] Teste automate: autentificare, revocare, idempotență, timp original, respingere date invalide, același dispozitiv văzut de PC și telefon (12 teste Sync + 3 pe Android)
 - [ ] 🔧 Test real: telefon offline → reconectare → date recuperate
 
 ## Faza 4 — Detecția defectelor

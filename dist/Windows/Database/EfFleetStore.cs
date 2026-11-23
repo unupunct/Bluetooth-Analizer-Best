@@ -92,7 +92,10 @@ public sealed class EfFleetStore : IFleetStore
                     : string.Join(';', ad.Manufacturer.Select(m => $"{m.CompanyId:X4}:{Convert.ToHexString(m.Data)}")),
                 ServiceUuids = ad.ServiceUuids.Count == 0 ? null : string.Join(';', ad.ServiceUuids),
                 AdvertisementData = ad.Payload.Length == 0 ? null : Convert.ToHexString(ad.Payload),
-                Source = "Windows",
+                Source = ad.Meta?.Source ?? "Windows",
+                UploadedAtUtc = ad.Meta?.UploadedAtUtc,
+                InspectionSessionId = ad.Meta?.SessionId,
+                LocationLabel = ad.Meta?.LocationLabel,
             });
         }
 

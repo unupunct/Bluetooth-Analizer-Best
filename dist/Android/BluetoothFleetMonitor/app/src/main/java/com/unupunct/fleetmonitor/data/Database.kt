@@ -146,6 +146,8 @@ interface ConnectionTestDao {
     @Insert suspend fun insert(t: ConnectionTestEntity): Long
     @Query("SELECT * FROM connection_tests WHERE address = :address ORDER BY startedMs DESC LIMIT 10")
     fun observeFor(address: String): Flow<List<ConnectionTestEntity>>
+    @Query("SELECT * FROM connection_tests ORDER BY startedMs DESC LIMIT 200")
+    suspend fun recent(): List<ConnectionTestEntity>
 }
 
 @Dao
@@ -161,6 +163,15 @@ interface ObservationDao {
 
     @Query("SELECT COUNT(*) FROM observations WHERE uploadedAtMs IS NULL")
     fun observePending(): Flow<Long>
+
+    @Query("SELECT COUNT(*) FROM observations WHERE uploadedAtMs IS NULL")
+    suspend fun pendingCount(): Long
+
+    @Query("SELECT * FROM observations WHERE uploadedAtMs IS NULL ORDER BY timestampMs LIMIT :limit")
+    suspend fun pending(limit: Int): List<ObservationEntity>
+
+    @Query("UPDATE observations SET uploadedAtMs = :ts WHERE id IN (:ids)")
+    suspend fun markUploaded(ids: List<String>, ts: Long)
 
     @Query("SELECT sessionId, COUNT(DISTINCT address) AS distinctDevices, COUNT(*) AS observations FROM observations WHERE sessionId IS NOT NULL GROUP BY sessionId")
     fun observeSessionSummaries(): Flow<List<SessionSummary>>
@@ -178,6 +189,7 @@ interface SessionDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE) suspend fun upsert(s: SessionEntity)
     @Query("SELECT * FROM sessions ORDER BY startedAtMs DESC") fun observeAll(): Flow<List<SessionEntity>>
     @Query("SELECT * FROM sessions WHERE id = :id") suspend fun get(id: String): SessionEntity?
+    @Query("SELECT * FROM sessions ORDER BY startedAtMs DESC LIMIT 500") suspend fun all(): List<SessionEntity>
     @Query("SELECT * FROM sessions WHERE endedAtMs IS NULL ORDER BY startedAtMs DESC LIMIT 1") suspend fun open(): SessionEntity?
 }
 

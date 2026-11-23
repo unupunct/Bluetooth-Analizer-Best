@@ -109,14 +109,20 @@ public class IdentityResolverTests
     }
 
     [Fact]
-    public void Unknown_address_kind_is_not_trusted_as_a_stable_identity()
+    public void Unknown_address_kind_never_creates_a_stable_identity_but_can_match_an_existing_one()
     {
         var id = Guid.NewGuid();
         var known = new[] { Known(id, IdentifierTypes.StableAddress, "CCCCCCCCCCCC") };
 
-        var d = IdentityResolver.Resolve(Ad(0xCCCCCCCCCCCC, AddressKind.Unknown), known);
+        // A phone cannot say what kind of address it heard, but it is the same over-the-air address the PC recorded as stable.
+        var same = IdentityResolver.Resolve(Ad(0xCCCCCCCCCCCC, AddressKind.Unknown), known);
+        Assert.Equal(id, same.DeviceId);
+        Assert.Null(same.StableAddress);                     // matching never records the unknown-kind address as a new stable identifier
 
-        Assert.Null(d.DeviceId);
+        // An address nobody recorded as stable is not trusted as one.
+        var other = IdentityResolver.Resolve(Ad(0xDDDDDDDDDDDD, AddressKind.Unknown), known);
+        Assert.Null(other.DeviceId);
+        Assert.Null(other.StableAddress);
     }
 
     [Fact]

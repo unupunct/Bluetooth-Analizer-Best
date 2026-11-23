@@ -69,6 +69,7 @@ class FleetViewModel @Inject constructor(
     private val settingsStore: SettingsStore,
     val motion: MotionTracker,
     private val gatt: GattTester,
+    val sync: com.unupunct.fleetmonitor.sync.SyncManager,
 ) : ViewModel() {
 
     val status = engine.status

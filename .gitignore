@@ -28,3 +28,7 @@ graphify-out/
 # Signing material - never commit
 *.jks
 *.keystore
+
+# JVM crash dumps
+hs_err_pid*.log
+replay_pid*.log
