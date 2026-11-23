@@ -116,14 +116,7 @@ public static class FaultAnalyzer
         var cut = new Dictionary<Guid, List<TimeRange>>();
         foreach (var d in devices)
         {
-            var list = new List<TimeRange>();
-            foreach (var sil in d.Silences)
-            {
-                var from = d.FirstSeenUtc is { } f && f > sil.StartUtc ? f : sil.StartUtc;
-                foreach (var piece in Intersect(new TimeRange(from, sil.EndUtc), covered))
-                    if (piece.Length >= TimeSpan.FromSeconds(s.MinGapSeconds)) list.Add(piece);
-            }
-            cut[d.DeviceId] = list;
+            cut[d.DeviceId] = CutToCoverage(d.Silences, covered, window, d.FirstSeenUtc, s.MinGapSeconds).ToList();
         }
 
         // 2. Fleet-wide / room-wide silences: many devices quiet at the same time is the environment or the scanner, not the devices.
@@ -298,6 +291,24 @@ public static class FaultAnalyzer
     {
         var s = a.StartUtc > b.StartUtc ? a.StartUtc : b.StartUtc; var e = a.EndUtc < b.EndUtc ? a.EndUtc : b.EndUtc;
         return e > s ? (e - s).TotalSeconds : 0;
+    }
+
+    /// <summary>
+    /// Keeps only the parts of each silence that happened while the scanner was listening and after the device was first heard,
+    /// and drops pieces shorter than the minimum gap. Shared by the Fault Detector and the Signal Analysis page.
+    /// </summary>
+    public static IReadOnlyList<TimeRange> CutToCoverage(IReadOnlyList<TimeRange> silences, IReadOnlyList<TimeRange> coverage, TimeRange window, DateTime? firstSeenUtc, int minGapSeconds)
+    {
+        var covered = Merge(coverage.Select(c => Clip(c, window)).Where(c => c.Length > TimeSpan.Zero).ToList());
+        var list = new List<TimeRange>();
+        foreach (var sil in silences)
+        {
+            var from = firstSeenUtc is { } f && f > sil.StartUtc ? f : sil.StartUtc;
+            if (from >= sil.EndUtc) continue;
+            foreach (var piece in Intersect(new TimeRange(from, sil.EndUtc), covered))
+                if (piece.Length >= TimeSpan.FromSeconds(minGapSeconds)) list.Add(piece);
+        }
+        return list;
     }
 
     private static TimeRange Clip(TimeRange r, TimeRange w) => new(r.StartUtc < w.StartUtc ? w.StartUtc : r.StartUtc, r.EndUtc > w.EndUtc ? w.EndUtc : r.EndUtc);

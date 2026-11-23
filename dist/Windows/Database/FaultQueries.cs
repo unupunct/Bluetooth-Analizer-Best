@@ -64,10 +64,24 @@ public sealed class FaultQueries
                 TestAttempts = (int)(t?.Attempts ?? 0), TestFailures = (int)(t?.Failed ?? 0), FirstSeenUtc = d.FirstSeenUtc,
             });
         }
-        return (list, await LoadCoverageAsync(db, window, ct));
+        return (list, await LoadCoverageCoreAsync(db, window, ct));
     }
 
-    private static async Task<IReadOnlyList<TimeRange>> LoadCoverageAsync(FleetDbContext db, TimeRange window, CancellationToken ct)
+    /// <summary>Time ranges in the window during which the scanner was in the Running state.</summary>
+    public async Task<IReadOnlyList<TimeRange>> LoadCoverageAsync(TimeRange window, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        return await LoadCoverageCoreAsync(db, window, ct);
+    }
+
+    /// <summary>The same fleet analysis the Fault Detector shows, narrowed to one device (null when it was not heard in the window).</summary>
+    public async Task<DeviceDiagnosis?> DiagnoseAsync(Guid deviceId, TimeRange window, AnalyzerSettings s, CancellationToken ct = default)
+    {
+        var (devices, coverage) = await LoadAsync(window, s, ct);
+        return FaultAnalyzer.Analyze(devices, coverage, window, s).Devices.FirstOrDefault(d => d.DeviceId == deviceId);
+    }
+
+    private static async Task<IReadOnlyList<TimeRange>> LoadCoverageCoreAsync(FleetDbContext db, TimeRange window, CancellationToken ct)
     {
         var from = window.StartUtc; var to = window.EndUtc;
         // state in force at the start of the window, then every change inside it
