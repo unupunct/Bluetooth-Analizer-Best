@@ -85,4 +85,23 @@ public sealed class SignalQueries
         list.AddRange(rows.OrderByDescending(r => r.Cnt).Select(r => new ScannerChoice(r.ScannerId, names.TryGetValue(r.ScannerId, out var n) ? n : r.ScannerId.ToString("N")[..8], r.Cnt)));
         return list;
     }
+
+    private sealed class SourceRow { public string Source { get; set; } = ""; public long Cnt { get; set; } }
+
+    /// <summary>The facts for the "what is this device" panel; null when there is no such device.</summary>
+    public async Task<DeviceProfileInput?> LoadProfileAsync(Guid deviceId, CancellationToken ct = default)
+    {
+        await using var db = await _factory.CreateDbContextAsync(ct);
+        var d = await db.Devices.AsNoTracking().Include(x => x.Identifiers).FirstOrDefaultAsync(x => x.Id == deviceId, ct);
+        if (d is null) return null;
+        var newest = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId).OrderByDescending(o => o.TimestampUtc).Select(o => new { o.AddressKind }).FirstOrDefaultAsync(ct);
+        var mfr = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.ManufacturerData != null).OrderByDescending(o => o.TimestampUtc).Select(o => o.ManufacturerData).FirstOrDefaultAsync(ct);
+        var svc = await db.Observations.AsNoTracking().Where(o => o.DeviceId == deviceId && o.ServiceUuids != null).OrderByDescending(o => o.TimestampUtc).Select(o => o.ServiceUuids).FirstOrDefaultAsync(ct);
+        var bySource = (await db.Database.SqlQuery<SourceRow>($"SELECT Source, COUNT(*) AS Cnt FROM Observations WHERE DeviceId = {deviceId} GROUP BY Source").ToListAsync(ct))
+            .ToDictionary(r => r.Source, r => r.Cnt);
+        return new DeviceProfileInput(d.DisplayName, d.AdvertisedName, d.Category, d.AssignedRoom, d.AssignedWorkstation, mfr, svc,
+            newest?.AddressKind ?? Domain.AddressKind.Unknown,
+            d.Identifiers.Any(i => i.IdentifierType == Domain.IdentifierTypes.StableAddress), d.Identifiers.Any(i => i.IdentifierType == Domain.IdentifierTypes.Fingerprint),
+            d.FirstSeenUtc, d.LastSeenUtc, d.ObservationCount, bySource);
+    }
 }
