@@ -20,6 +20,20 @@ data class DeviceEntity(
     val rssiSum: Long,
     val observationCount: Long,
     val advertisementCount: Long,
+    /** Bluetooth SIG company ids seen in this device's manufacturer data (comma separated, decimal). Schema v3. */
+    val companyIds: String? = null,
+    /** 16-bit service UUIDs seen (comma separated, hex). Schema v3. */
+    val serviceUuids: String? = null,
+    /** GAP appearance value, when the device advertises one. Schema v3. */
+    val appearance: Int? = null,
+    /** RSSI at 1 m measured by the user for THIS device ("calibrate"); makes distance estimates much better. Schema v3. */
+    val calibRssi1m: Int? = null,
+    /** Facts read from the device itself by "Connect and test". Schema v3. */
+    val gattName: String? = null,
+    val gattManufacturer: String? = null,
+    val gattModel: String? = null,
+    val gattFirmware: String? = null,
+    val gattCheckedMs: Long? = null,
 ) {
     val displayName: String get() = customName?.takeIf { it.isNotBlank() } ?: advertisedName?.takeIf { it.isNotBlank() } ?: "Device ${address.takeLast(6)}"
     val averageRssi: Double get() = if (observationCount == 0L) 0.0 else rssiSum.toDouble() / observationCount
@@ -57,6 +71,23 @@ data class ObservationEntity(
     val txPower: Int? = null,
     /** Advertising flags byte (discoverability, BR/EDR support), when present. Added in schema v2. */
     val advertiseFlags: Int? = null,
+)
+
+/** One "Connect and test" run on one device the user chose. Never run automatically. */
+@Entity(tableName = "connection_tests", indices = [Index("address")])
+data class ConnectionTestEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val address: String,
+    val startedMs: Long,
+    val durationMs: Long,
+    val outcome: String,
+    val gattStatus: Int?,
+    val detail: String?,
+    val services: String?,
+    val rssiMin: Int?,
+    val rssiMax: Int?,
+    val rssiAvg: Double?,
+    val rssiReads: Int,
 )
 
 @Entity(tableName = "sessions")
@@ -102,6 +133,19 @@ interface DeviceDao {
 
     @Query("UPDATE devices SET customName = :name WHERE address = :address")
     suspend fun rename(address: String, name: String?)
+
+    @Query("UPDATE devices SET calibRssi1m = :ref WHERE address = :address")
+    suspend fun setCalibration(address: String, ref: Int?)
+
+    @Query("UPDATE devices SET gattName = :name, gattManufacturer = :maker, gattModel = :model, gattFirmware = :fw, gattCheckedMs = :at WHERE address = :address")
+    suspend fun setGattInfo(address: String, name: String?, maker: String?, model: String?, fw: String?, at: Long)
+}
+
+@Dao
+interface ConnectionTestDao {
+    @Insert suspend fun insert(t: ConnectionTestEntity): Long
+    @Query("SELECT * FROM connection_tests WHERE address = :address ORDER BY startedMs DESC LIMIT 10")
+    fun observeFor(address: String): Flow<List<ConnectionTestEntity>>
 }
 
 @Dao
@@ -148,12 +192,23 @@ interface DiagnosticsDao {
 }
 
 @Database(
-    entities = [DeviceEntity::class, ObservationEntity::class, SessionEntity::class, CoverageGapEntity::class, AppEventEntity::class],
-    version = 2,
+    entities = [DeviceEntity::class, ObservationEntity::class, SessionEntity::class, CoverageGapEntity::class, AppEventEntity::class, ConnectionTestEntity::class],
+    version = 3,
     exportSchema = true,
 )
 abstract class FleetDatabase : RoomDatabase() {
     companion object {
+        /** v2 -> v3: device attributes for identification, per-device calibration, GATT facts, and the connection-test log. Nothing is dropped. */
+        val MIGRATION_2_3 = object : androidx.room.migration.Migration(2, 3) {
+            override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
+                for (col in listOf("companyIds TEXT", "serviceUuids TEXT", "appearance INTEGER", "calibRssi1m INTEGER", "gattName TEXT",
+                    "gattManufacturer TEXT", "gattModel TEXT", "gattFirmware TEXT", "gattCheckedMs INTEGER"))
+                    db.execSQL("ALTER TABLE devices ADD COLUMN $col")
+                db.execSQL("CREATE TABLE IF NOT EXISTS connection_tests (id INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, address TEXT NOT NULL, startedMs INTEGER NOT NULL, durationMs INTEGER NOT NULL, outcome TEXT NOT NULL, gattStatus INTEGER, detail TEXT, services TEXT, rssiMin INTEGER, rssiMax INTEGER, rssiAvg REAL, rssiReads INTEGER NOT NULL)")
+                db.execSQL("CREATE INDEX IF NOT EXISTS index_connection_tests_address ON connection_tests (address)")
+            }
+        }
+
         /** v1 -> v2: keep every stored observation, add the two optional advertisement fields. */
         val MIGRATION_1_2 = object : androidx.room.migration.Migration(1, 2) {
             override fun migrate(db: androidx.sqlite.db.SupportSQLiteDatabase) {
@@ -167,4 +222,5 @@ abstract class FleetDatabase : RoomDatabase() {
     abstract fun observations(): ObservationDao
     abstract fun sessions(): SessionDao
     abstract fun diagnostics(): DiagnosticsDao
+    abstract fun connectionTests(): ConnectionTestDao
 }

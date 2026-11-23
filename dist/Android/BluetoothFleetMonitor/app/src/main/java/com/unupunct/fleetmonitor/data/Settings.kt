@@ -23,6 +23,10 @@ data class AppSettings(
     /** Comma-separated EXACT device names for Background mode (Android pauses unfiltered scans when the screen is off). */
     val backgroundDeviceNames: String = "",
     val lastLocation: String = "Office",
+    /** Path-loss exponent x10 (25 = 2.5). 20 is open air; 25 to 30 is typical indoors; higher for cluttered rooms. */
+    val pathLossTenths: Int = 25,
+    /** Length of one step in centimetres, for dead-reckoning while locating a device. */
+    val strideCm: Int = 70,
 )
 
 /** Plain SharedPreferences behind a StateFlow: tiny, synchronous, and survives process death. */
@@ -39,6 +43,8 @@ class SettingsStore @Inject constructor(@ApplicationContext context: Context) {
         presenceWindowSec = prefs.getInt("presenceWindowSec", 120),
         backgroundDeviceNames = prefs.getString("backgroundDeviceNames", "") ?: "",
         lastLocation = prefs.getString("lastLocation", "Office") ?: "Office",
+        pathLossTenths = prefs.getInt("pathLossTenths", 25),
+        strideCm = prefs.getInt("strideCm", 70),
     )
 
     fun update(block: (AppSettings) -> AppSettings) {
@@ -50,6 +56,8 @@ class SettingsStore @Inject constructor(@ApplicationContext context: Context) {
             .putInt("presenceWindowSec", s.presenceWindowSec.coerceIn(10, 86400))
             .putString("backgroundDeviceNames", s.backgroundDeviceNames)
             .putString("lastLocation", s.lastLocation)
+            .putInt("pathLossTenths", s.pathLossTenths.coerceIn(15, 50))
+            .putInt("strideCm", s.strideCm.coerceIn(40, 120))
             .apply()
         _settings.value = read()
     }

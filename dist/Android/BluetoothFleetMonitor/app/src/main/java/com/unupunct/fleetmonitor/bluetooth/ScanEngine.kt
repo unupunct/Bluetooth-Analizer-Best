@@ -38,6 +38,11 @@ class LiveDevice(
     val samples: List<Int>,
     val advCount: Long,
     val advertisementHex: String?,
+    val companyIds: Set<Int> = emptySet(),
+    val services16: Set<Int> = emptySet(),
+    val appearance: Int? = null,
+    val txPower: Int? = null,
+    val connectable: Boolean? = null,
 )
 
 class Counters(val heard: Long = 0, val stored: Long = 0, val dropped: Long = 0, val lost: Long = 0)
@@ -89,6 +94,13 @@ class ScanEngine @Inject constructor(
     private class LiveState(var name: String?, var manufacturer: String?, var rssi: Int, var lastSeenMs: Long, var advCount: Long, var hex: String?) {
         val samples = ArrayDeque<Int>()
         var lastSampleMs = 0L
+        var secSum = 0L
+        var secCount = 0
+        val companyIds = LinkedHashSet<Int>()
+        val services16 = LinkedHashSet<Int>()
+        var appearance: Int? = null
+        var txPower: Int? = null
+        var connectable: Boolean? = null
     }
 
     private val adapter: BluetoothAdapter? get() = (context.getSystemService(Context.BLUETOOTH_SERVICE) as? BluetoothManager)?.adapter
@@ -460,12 +472,24 @@ class ScanEngine @Inject constructor(
         if (!ad.name.isNullOrBlank()) st.name = ad.name
         if (ad.manufacturer.isNotEmpty() && st.manufacturer == null) st.manufacturer = CompanyIds.describe(ad.manufacturer[0].companyId)
         if (ad.payload.isNotEmpty()) st.hex = Fingerprint.hex(ad.payload)
-        if (ad.observedAtMs - st.lastSampleMs >= 1000) { // one sparkline sample per second per device
-            st.lastSampleMs = ad.observedAtMs
-            st.samples.addLast(ad.rssi); while (st.samples.size > SAMPLE_CAP) st.samples.removeFirst()
-        }
-        if (!facts.containsKey(ad.address))
-            facts[ad.address] = DeviceFacts(st.manufacturer, Fingerprint.compute(ad.manufacturer, ad.serviceUuids), ad.addressKind.name)
+        // One sample per second per device, and it is the MEAN of that second's advertisements: BLE adverts rotate over three radio
+        // channels whose signal differs by several dB, so a single reading is noisy. Averaging removes much of that before ranging.
+        if (st.secCount == 0) { st.lastSampleMs = ad.observedAtMs; st.secSum = ad.rssi.toLong(); st.secCount = 1 }
+        else if (ad.observedAtMs - st.lastSampleMs >= 1000) {
+            st.samples.addLast(Math.round(st.secSum.toDouble() / st.secCount).toInt()); while (st.samples.size > SAMPLE_CAP) st.samples.removeFirst()
+            st.lastSampleMs = ad.observedAtMs; st.secSum = ad.rssi.toLong(); st.secCount = 1
+        } else { st.secSum += ad.rssi; st.secCount++ }
+        for (m in ad.manufacturer) st.companyIds.add(m.companyId)
+        for (u in ad.serviceUuids) AdParser.uuid128To16(u)?.let { st.services16.add(it) }
+        st.services16.addAll(AdParser.services16(ad.payload))
+        if (st.appearance == null) st.appearance = AdParser.appearance(ad.payload)
+        ad.txPower?.let { st.txPower = it }
+        ad.connectable?.let { st.connectable = it }
+        val f = facts.getOrPut(ad.address) { DeviceFacts(st.manufacturer, Fingerprint.compute(ad.manufacturer, ad.serviceUuids), ad.addressKind.name) }
+        f.manufacturer = f.manufacturer ?: st.manufacturer
+        f.fingerprint = f.fingerprint ?: Fingerprint.compute(ad.manufacturer, ad.serviceUuids)
+        f.companyIds.addAll(st.companyIds); f.services16.addAll(st.services16)
+        if (f.appearance == null) f.appearance = st.appearance
         agg.offer(ad)?.let { batch += it }
     }
 
@@ -497,7 +521,8 @@ class ScanEngine @Inject constructor(
 
     private fun publishLive(now: Long) {
         _live.value = liveState.map { (addr, s) ->
-            LiveDevice(addr, s.name, s.manufacturer, s.rssi, s.lastSeenMs, s.samples.toList(), s.advCount, s.hex)
+            LiveDevice(addr, s.name, s.manufacturer, s.rssi, s.lastSeenMs, s.samples.toList(), s.advCount, s.hex,
+                s.companyIds.toSet(), s.services16.toSet(), s.appearance, s.txPower, s.connectable)
         }
         _counters.value = Counters(heard.get(), stored.get(), dropped.get(), lost.get())
     }

@@ -112,52 +112,6 @@ fun RssiChart(points: List<ChartPoint>, fromMs: Long, toMs: Long, breakAfterMs: 
     }
 }
 
-/** Radar of nearby devices. Distance from the centre is RELATIVE signal strength only; the angle is arbitrary. */
-@Composable
-fun Radar(
-    devices: List<DeviceRow>,
-    selected: String?,
-    onSelect: (String?) -> Unit,
-    modifier: Modifier = Modifier,
-) {
-    Canvas(
-        modifier.pointerInput(devices) {
-            detectTapGestures { tap ->
-                val c = Offset(size.width / 2f, size.height / 2f)
-                val maxR = minOf(size.width, size.height) / 2f - 16f
-                val hit = devices.filter { it.rssi != null }.minByOrNull { (pos(it, c, maxR) - tap).getDistance() }
-                onSelect(if (hit != null && (pos(hit, c, maxR) - tap).getDistance() < 60f) hit.address else null)
-            }
-        },
-    ) {
-        val c = Offset(size.width / 2f, size.height / 2f)
-        val maxR = minOf(size.width, size.height) / 2f - 16f
-        for (f in listOf(0.25f, 0.5f, 0.75f, 1f)) drawCircle(FleetColors.Line, maxR * f, c, style = Stroke(width = 1.5f))
-        drawLine(FleetColors.Line, Offset(c.x - maxR, c.y), Offset(c.x + maxR, c.y), 1f)
-        drawLine(FleetColors.Line, Offset(c.x, c.y - maxR), Offset(c.x, c.y + maxR), 1f)
-        drawCircle(FleetColors.Accent, 8f, c)
-        for (d in devices) {
-            if (d.rssi == null) continue
-            val p = pos(d, c, maxR)
-            val col = when {
-                d.presence != DevicePresence.Detected -> FleetColors.Muted
-                d.unstable -> FleetColors.Warn
-                d.rssi < -78 -> FleetColors.Bad
-                else -> FleetColors.Good
-            }
-            drawCircle(col, if (d.address == selected) 14f else 9f, p)
-            if (d.address == selected) drawCircle(Color.White, 18f, p, style = Stroke(width = 2f))
-        }
-    }
-}
-
-private fun pos(d: DeviceRow, c: Offset, maxR: Float): Offset {
-    val rssi = (d.rssi ?: -100).coerceIn(-100, -40)
-    val frac = 0.08f + 0.92f * ((-40 - rssi) / 60f)           // stronger signal = nearer the centre
-    val angle = Math.toRadians(((d.address.hashCode() and 0x7fffffff) % 360).toDouble())
-    return Offset(c.x + (maxR * frac * cos(angle)).toFloat(), c.y + (maxR * frac * sin(angle)).toFloat())
-}
-
 /** Buckets raw observation windows into at most ~[maxPoints] chart points. */
 fun bucketObservations(rows: List<ObservationEntity>, fromMs: Long, toMs: Long, maxPoints: Int = 300): Pair<List<ChartPoint>, Long> {
     val bucketMs = ((toMs - fromMs) / maxPoints).coerceAtLeast(1000)

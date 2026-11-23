@@ -20,6 +20,8 @@ class BleAdvertisement(
     val payload: ByteArray,
     val txPower: Int? = null,
     val flags: Int? = null,
+    /** Whether this advertisement says the device accepts connections (null when unknown). */
+    val connectable: Boolean? = null,
 )
 
 /**

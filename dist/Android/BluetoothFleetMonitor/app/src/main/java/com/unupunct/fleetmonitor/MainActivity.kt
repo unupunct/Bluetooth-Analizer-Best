@@ -72,7 +72,9 @@ private fun AppRoot() {
     ) { pad ->
         Box(Modifier.fillMaxSize().padding(pad).statusBarsPadding()) {
             NavHost(nav, startDestination = "scanner") {
-                composable("scanner") { ScannerScreen(vm) }
+                composable("scanner") {
+                    ScannerScreen(vm) { nav.navigate("radar") { popUpTo(nav.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }
+                }
                 composable("nearby") { NearbyScreen(vm) { go("inspector/$it") } }
                 composable("radar") { RadarScreen(vm) { go("inspector/$it") } }
                 composable("sessions") { SessionsScreen(vm) { go("inspector/$it") } }
@@ -81,7 +83,10 @@ private fun AppRoot() {
                 composable("history/{address}") { b -> HistoryScreen(vm, b.arguments?.getString("address")) }
                 composable("inspector/{address}") { b ->
                     val a = b.arguments?.getString("address").orEmpty()
-                    InspectorScreen(vm, a, { go("history/$it") }, { nav.popBackStack() })
+                    InspectorScreen(vm, a, { go("history/$it") }, { nav.popBackStack() }) { addr ->
+                        vm.select(addr)
+                        nav.navigate("radar") { popUpTo(nav.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true }
+                    }
                 }
                 composable("sync") { SyncScreen(vm) }
                 composable("settings") { SettingsScreen(vm) }

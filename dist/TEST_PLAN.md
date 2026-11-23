@@ -71,6 +71,20 @@ Phone checklist (ticked only where observed on a real phone):
 - [ ] The same device on the phone and on Windows has the same fingerprint (compare the Fleet fingerprints once Phase 3 sync exists)
 - [ ] Battery: scan for an hour with defaults, note the drain
 
+
+Radar and following a signal (a person ticks these on a real phone; items marked [x] were seen working):
+
+- [x] Start scanning opens the radar; devices appear on it and in a list directly under it
+- [x] Search filters the list; selecting a device opens its identification panel
+- [x] Follow the signal shows the gauge and warmer/colder text, and stops cleanly
+- [ ] Turn on the spot: the N / E / S / W ring turns the opposite way and "facing" follows
+- [ ] Walk towards a known device from 8 m: the gauge rises, the distance falls, and after a turn the arrow points at it
+- [ ] Calibrate a device at 1 m, then check the distance at 1 m, 2 m and 4 m against a tape measure and note the error
+- [ ] Vibration gets faster as you approach and stops when you stop following
+- [ ] Watch for it: type part of a name that is not yet in range, walk into range, the phone buzzes and selects it
+- [ ] Connect and test on one safe, non-Lovense device that nothing else is using: the result card shows the outcome and the test is logged
+- [ ] Connect and test is disabled for a device that is not accepting connections
+
 ## 5. Later phases
 
 API authentication / idempotency / offline recovery tests (Phase 3), fault-detection tests with simulated data clearly marked (Phase 4), active-test safety tests (Phase 5), 18-point acceptance checklist from the specification (Phase 6).

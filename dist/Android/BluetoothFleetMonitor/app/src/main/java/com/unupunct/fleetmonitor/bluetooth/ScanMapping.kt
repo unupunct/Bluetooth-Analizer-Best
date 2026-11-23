@@ -49,6 +49,7 @@ object ScanMapping {
             payload = record?.bytes ?: ByteArray(0),
             txPower = tx,
             flags = flags,
+            connectable = r.isConnectable,
         )
     }
 

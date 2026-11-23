@@ -10,7 +10,14 @@ import javax.inject.Inject
 import javax.inject.Singleton
 
 /** Extra facts about a device that come from the advertisement itself rather than from RSSI windows. */
-class DeviceFacts(val manufacturer: String?, val fingerprint: String?, val addressKind: String)
+class DeviceFacts(var manufacturer: String?, var fingerprint: String?, val addressKind: String) {
+    val companyIds = LinkedHashSet<Int>()
+    val services16 = LinkedHashSet<Int>()
+    var appearance: Int? = null
+}
+
+private fun parseInts(s: String?, radix: Int): List<Int> = s?.split(',')?.mapNotNull { it.trim().takeIf(String::isNotEmpty)?.toIntOrNull(radix) } ?: emptyList()
+private fun joinInts(v: Collection<Int>, radix: Int): String? = v.toSortedSet().joinToString(",") { it.toString(radix).uppercase() }.ifEmpty { null }
 
 @Singleton
 class FleetRepository @Inject constructor(private val db: FleetDatabase) {
@@ -29,6 +36,11 @@ class FleetRepository @Inject constructor(private val db: FleetDatabase) {
     suspend fun averageBefore(address: String, beforeMs: Long) = db.observations().averageBefore(address, beforeMs)
     suspend fun allGaps(): List<CoverageGap> = db.diagnostics().allGaps().map { CoverageGap(it.startMs, it.endMs, it.reason) }
     suspend fun rename(address: String, name: String?) = db.devices().rename(address, name?.trim()?.ifBlank { null })
+    suspend fun setCalibration(address: String, ref: Int?) = db.devices().setCalibration(address, ref)
+    suspend fun saveGattInfo(address: String, name: String?, maker: String?, model: String?, fw: String?) =
+        db.devices().setGattInfo(address, name, maker, model, fw, System.currentTimeMillis())
+    suspend fun logConnectionTest(t: ConnectionTestEntity) = db.connectionTests().insert(t)
+    fun connectionTests(address: String): Flow<List<ConnectionTestEntity>> = db.connectionTests().observeFor(address)
 
     /**
      * Writes a batch atomically: observation rows (duplicates by id ignored) and the matching device statistics.
@@ -68,6 +80,9 @@ class FleetRepository @Inject constructor(private val db: FleetDatabase) {
                         firstSeenMs = o.timestampMs, lastSeenMs = o.windowEndMs, lastRssi = o.rssi,
                         minRssi = o.rssiMin, maxRssi = o.rssiMax, rssiSum = Math.round(o.rssiAvg), observationCount = 1,
                         advertisementCount = o.advCount.toLong(),
+                        companyIds = joinInts(f?.companyIds ?: emptySet(), 10),
+                        serviceUuids = joinInts(f?.services16 ?: emptySet(), 16),
+                        appearance = f?.appearance,
                     )
                 } else {
                     val newest = o.windowEndMs >= d.lastSeenMs
@@ -82,6 +97,9 @@ class FleetRepository @Inject constructor(private val db: FleetDatabase) {
                         rssiSum = d.rssiSum + Math.round(o.rssiAvg),
                         observationCount = d.observationCount + 1,
                         advertisementCount = d.advertisementCount + o.advCount,
+                        companyIds = joinInts(parseInts(d.companyIds, 10) + (f?.companyIds ?: emptySet()), 10),
+                        serviceUuids = joinInts(parseInts(d.serviceUuids, 16) + (f?.services16 ?: emptySet()), 16),
+                        appearance = d.appearance ?: f?.appearance,
                     )
                 }
                 known[o.address] = updated

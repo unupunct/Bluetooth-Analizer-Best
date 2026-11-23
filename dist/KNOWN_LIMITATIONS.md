@@ -41,3 +41,13 @@
 - **No upload yet.** Until Phase 3 nothing leaves the phone and nothing is deleted automatically.
 - **Release builds** are currently signed with the debug key (local install only). A real signing key arrives in Phase 6.
 - **Partly verified on one phone** (Galaxy A52s, Android 14). Other models and Android versions are untested; Samsung and other vendors add their own background-process killers. See `IMPLEMENTATION_STATUS.md`.
+
+## Radar and ranging limits
+
+- **Distance from Bluetooth signal strength is an estimate, not a measurement.** Walls, bodies, antenna orientation and the three advertising channels (which read several dB apart) change it. Typical indoor error is a factor of 1.5 to 2, so "about 3 m" can honestly be 2 to 5 m. Per-device calibration at a known distance is the biggest improvement. Exact-metre accuracy is not possible with a phone's Bluetooth radio.
+- **A phone cannot sense direction.** Direction comes only from walking: the app tracks steps (accelerometer) and compass heading (rotation-vector sensor) and fits where the signal says the device must be. It needs several metres of walking with a turn; a straight walk leaves a left/right ambiguity, which the radar shows as a dashed second position.
+- **The walked path drifts.** Step length is a setting (70 cm default) and the compass is disturbed by metal and magnets, so the path is only trusted for short walks. The error radius shown includes the signal noise but not path drift.
+- **Hollow dots have no direction.** Only their distance from the centre means anything; their angle is arbitrary.
+- **Category is a guess from what the device advertises** (appearance, services, name pattern, manufacturer id), shown with its evidence and a confidence. A company id alone gives a maker, not a type. "Connect and test" can read the device's own name and model, but many devices keep them private.
+- **Connect and test touches the device.** It reads only standard identification data and measures the link signal, never writes or pairs, but a connection can disturb something already using the device, and a device already connected to another app usually refuses it. It runs only on a device you pick, after a warning (stronger for Lovense devices), with a 10 s cooldown per device.
+- **Vibration** needs a phone with a vibrator and is on by default while following a signal; it can be switched off.

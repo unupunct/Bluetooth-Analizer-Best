@@ -58,6 +58,25 @@ Schema migration v1 -> v2 (2026-11-23, real phone data): the phone's database (5
 The false "QueueOverflow: 1 dropped" event logged on every stop is fixed in code (an advertisement arriving after the queue was closed is no longer counted as dropped); not re-observed on the phone yet.
 
 Known gaps: Bluetooth off/on recovery, permission revocation while scanning, Background mode with the screen off, long runs, and the battery cost are untested. The phone's clock was about 5 s behind the PC when compared, and observation times come from the phone clock, so Phase 3 sync must tolerate or detect clock skew.
+## Radar, identification and following a signal (Android, 2026-11-23)
+
+What exists: Start scanning goes straight to the Radar. Devices appear on it as soon as they are heard (the first reading gives a provisional distance, firmed up after a few seconds) and are listed directly under it, nearest first, in a stable order. A small (i) button holds the explanation. The ring shows N, E, S and W and turns with the phone (Heading up, with a "facing 93 deg E" readout) or stays fixed (North up). Selecting a device opens a panel at the top of the list: name, category and maker with confidence and the evidence behind it, smoothed signal, distance with error bars, calibration, Follow the signal, Connect and test, Search for this device. The search box filters the list by name, maker, type or address; Watch for it selects a matching device and buzzes when it is first heard; a pinned target is highlighted on the radar and everything else dims. Follow the signal shows warmer / colder / very close, a signal gauge, a direction arrow (once a few steps and a turn give a bearing) and optional vibration that speeds up as the distance falls.
+
+| Piece | Verified how |
+|---|---|
+| Distance model (log-distance, per-device calibration, TX power or default reference, Kalman smoothing, error bars) | 9 unit tests |
+| Identification (GAP appearance, 16-bit services, name patterns, company id, evidence list, agreement raises confidence) and the advertisement parser | 11 unit tests |
+| Locating a device from a walk (grid search over position and reference level, error region, mirror ambiguity, confidence) | 6 unit tests with simulated walks; accuracy below |
+| Compass heading maths, circular smoothing, step detector, dead reckoning | 8 unit tests |
+| Room v2 -> v3 migration | Run on the real phone database: 542 devices, 8,446 windows, 1 session, 2 gaps, 6 events before and after; new columns and the connection-test table present; integrity ok |
+| Setup card with "Allow everything" (permissions, then the system battery-exemption dialog) | Used by the phone's owner: the Bluetooth-connect permission was granted and the app whitelisted; the card then reads "Setup complete" |
+| Start scanning -> radar, device list under it, info button, search filtering, device panel, Follow the signal gauge and stop, live compass readout | Seen working on the Galaxy A52s (text of the app's own screens) |
+| Radar graphics (sweep, glow, rings, compass ring, dots, dimming) | Compiled and ran without crashing; **not visually inspected by me** (Canvas drawing is not readable as text) |
+
+**Accuracy, measured in simulation (3 dB noise, a 17-reading walk, device about 9 m away):** with the reference level calibrated, the median position error was 1.4 m and the reported error radius contained the true position in 87% of 60 walks; every walk labelled "High" confidence was within 0.9 m. With the reference 6 dB wrong (an uncalibrated device) the median error is about 5 m and the radius still contained the truth in 83% of walks. So: calibrate the device. The app reports a likely range (for example "about 3 m, probably 2 to 5 m"), never a single exact figure. Real rooms have more multipath than the simulation, so field error will usually be larger; the error radius is the thing to trust.
+
+NOT verified: Connect and test (code complete, but I did not connect to any of your devices; it needs you to choose a safe one), the direction arrow and bearing on a real walk, vibration pacing, Watch for it firing, heading-up rotation while turning (the compass readout updates, but I cannot rotate the phone), step counting on a real walk, and drift of the path over longer walks.
+
 ## Not built yet (by design)
 
 Fault detection engine, health score, Worst Offenders, signal analysis (Phase 4); LAN API with QR pairing and sync (Phase 3); active connection tests (Phase 5); USB monitor, reports, in-app restore, release packaging (Phase 6); iOS (deferred; needs a Mac). Their navigation entries are marked with their phase and show "Not implemented yet". The Health column shows "-" instead of a number.
