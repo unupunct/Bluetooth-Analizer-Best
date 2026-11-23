@@ -2,7 +2,7 @@
 
 A local-only system for finding unreliable Bluetooth / BLE devices across a fleet of 170+ devices: a Windows command center that stores everything, plus a phone app that scans on the move and syncs to it over the local network. No cloud, no ads, no telemetry, no subscriptions.
 
-> **Status: early development (Phase 3 of 6, pre-release v0.3.0).** The Windows app builds, runs, and passes 100 automated tests, and its passive BLE scanner has been verified with a real radio (1,067 advertisements from 56 devices in 30 s). The Android app builds, passes its unit tests and has scanned on a real phone (Galaxy A52s, Android 14), though not every feature is verified yet; Phone-to-Windows sync (QR pairing, HTTPS with a pinned certificate, idempotent upload) is built, unit/integration-tested, and was verified once with a real phone and real data (13,567 windows from 335 devices) through an `adb reverse` tunnel; it has not yet been run across a real Wi-Fi network with the Windows Firewall rule, which is the step you do on your own network. The Windows Fault Detector (health score, Worst Offenders) is built and unit-tested, but only exercised on fictional demo data and short real scans so far: its thresholds are engineering starting points, not validated failure rates. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
+> **Status: early development (Phase 3 of 6, pre-release v0.3.1).** The Windows app builds, runs, and passes 100 automated tests, and its passive BLE scanner has been verified with a real radio (1,067 advertisements from 56 devices in 30 s). The Android app builds, passes its unit tests and has scanned on a real phone (Galaxy A52s, Android 14), though not every feature is verified yet; Phone-to-Windows sync (QR pairing, HTTPS with a pinned certificate, idempotent upload) is built, unit/integration-tested, and was verified once with a real phone and real data (13,567 windows from 335 devices) through an `adb reverse` tunnel; it has not yet been run across a real Wi-Fi network with the Windows Firewall rule, which is the step you do on your own network. The Windows Fault Detector (health score, Worst Offenders) is built and unit-tested, but only exercised on fictional demo data and short real scans so far: its thresholds are engineering starting points, not validated failure rates. See [`dist/IMPLEMENTATION_STATUS.md`](dist/IMPLEMENTATION_STATUS.md) for exactly what is and is not verified.
 
 ## Screenshots
 
@@ -32,7 +32,8 @@ Fault Detector, ranking devices by evidence and explaining every score:
 
 Pre-release builds are on the [Releases page](https://github.com/unupunct/Bluetooth-Analizer-Best/releases). Pre-release means rough edges: see `dist/IMPLEMENTATION_STATUS.md` for what is verified.
 
-- **Windows 10/11 (x64):** `BluetoothFleetMonitor-<version>-win-x64.exe`, a single self-contained file (no .NET install needed). It is not code-signed, so Windows SmartScreen will warn: choose "More info" > "Run anyway".
+- **Windows 10/11 (x64), installer:** `BluetoothFleetMonitor-<version>-Setup.exe` installs for your user without administrator rights (Start menu entry, optional desktop shortcut, uninstaller). Your data stays in `%LOCALAPPDATA%\BluetoothFleetMonitor\data` and is kept when you upgrade or uninstall.
+- **Windows 10/11 (x64), portable:** `BluetoothFleetMonitor-<version>-win-x64.exe`, a single self-contained file (no .NET install needed; keeps its data in a `data` folder next to it). It is not code-signed, so Windows SmartScreen will warn: choose "More info" > "Run anyway".
 - **Android 10+:** `BluetoothFleetMonitor-<version>-android-debug.apk`. It is signed with a debug key, not a Play Store key: allow "install unknown apps" for your file manager, install, and expect Play Protect to ask. Since v0.3.0 it has the `INTERNET` permission, used **only** to upload to the PC you pair (HTTPS, pinned certificate, your own network); v0.2.x had none. The app has no internet permission.
 - Check the files against `SHA256SUMS.txt` from the same release.
 
@@ -61,6 +62,10 @@ Pre-release builds are on the [Releases page](https://github.com/unupunct/Blueto
 - Absence from a scan is never reported as a confirmed disconnection.
 - No proprietary commands are ever sent to devices, and existing connections are never disconnected.
 - No fabricated data in production views; simulated data only in tests or a labelled Demo Mode.
+
+## Building the installer
+
+`dist/Installer/BluetoothFleetMonitor.iss` is an [Inno Setup 6](https://jrsoftware.org/isinfo.php) script. Publish the exe (see the release flow in `CLAUDE.md`), then run `ISCC.exe /DAppVersion=<version> dist\Installer\BluetoothFleetMonitor.iss`; the setup is written to `dist\Builds\Release`. The installer is not code-signed.
 
 ## Running from source
 
