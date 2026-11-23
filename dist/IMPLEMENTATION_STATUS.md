@@ -79,7 +79,7 @@ NOT verified: Connect and test (code complete, but I did not connect to any of y
 
 ## Not built yet (by design)
 
-Signal Analysis and Signal Survey pages, presence-event history, the phone-side health view; active connection tests (Phase 5); USB monitor, reports, in-app restore, release packaging (Phase 6); iOS (deferred; needs a Mac). Their navigation entries are marked with their phase and show "Not implemented yet". The Health column shows "-" instead of a number.
+Signal Survey and Reports pages, presence-event history, the phone-side health view; active connection tests (Phase 5); USB monitor, reports, in-app restore, release packaging (Phase 6); iOS (deferred; needs a Mac). Their navigation entries are marked with their phase and show "Not implemented yet". The Health column shows "-" instead of a number.
 
 ## Known gaps inside Phase 1
 
@@ -102,3 +102,12 @@ Built: phone sync. Windows `Sync` project (Kestrel HTTPS, self-signed certificat
 **Verified:** 12 Windows tests against a real loopback Kestrel server (pinning, pairing, auth, revocation, idempotency, original times, rejected garbage, same device heard by PC and phone, sessions and connection tests, clock skew); 3 Android parser tests; and one real run on the Galaxy A52s through `adb reverse`: deep link, confirmation dialog, pairing, then 13,567 real windows (335 devices) uploaded in 28 batches, all stored with Source Android and original timestamps, the session and the connection test arrived, clock skew (6.4 s behind) reported, 0 left pending.
 
 **NOT verified:** a real Wi-Fi path with the Windows Firewall rule (the tunnel bypasses the firewall and the network); the camera QR scan (the link was opened through the deep link instead); several phones at once; very long offline queues; a PC address change after pairing (the phone keeps the old address; re-pair); WorkManager-style uploads with the app closed (not built).
+
+
+## Signal Analysis (v0.4.0)
+
+Built: the Signal Analysis page is now a per-device deep-dive (`Application/Diagnostics/SignalAnalyzer.cs`, `DeviceProfile.cs`, `Database/SignalQueries.cs`, `Desktop/ViewModels/SignalAnalysisViewModel.cs`). It shows what the database knows about the device (maker, services, address type, identity basis, first/last heard, counts per source), the Fault Detector's verdict for the same window, signal over time with a moving average and silence bands, min/max/mean/median, steadiness, the spread of signal levels, time between advertisements, silent periods (only while the scanner was listening and not shared with other devices) and signal drops with recovery times. Reachable with an **Analyse** button from the Fault Detector, Inventory and Live Monitor. The **Look up online** button only opens the browser with a search made from the maker and advertised name; the app makes no network call and never includes the address.
+
+**Verified:** 30+ new unit/SQL tests (engine maths, SQL aggregation against a real SQLite database, coverage cut, profile text, URL encoding, navigation event); the page renders from fictional demo data (`--demo-shots`) and the published exe passes `--verify-ui`.
+
+**NOT verified:** the page on weeks of real scan data (only synthetic data so far), the browser button in your default browser (the URL builder is tested, the launch is not), performance on a 30-day window with the full fleet (the SQL is aggregated, but not timed on real data), and interval statistics for phone sources (a phone stores sampling windows, not every advertisement).

@@ -121,7 +121,7 @@ Un task e bifat doar după ce compilează, are teste unde se poate și a fost ve
 - [ ] „Insufficient data” când nu sunt destule observații
 - [ ] Separare cauză: dispozitiv / mediu / scanner / aplicație / necunoscut
 - [ ] Ecran Worst Offenders cu filtre
-- [ ] Ecran Signal Analysis
+- [x] Ecran Signal Analysis (v0.4.0): analiza per dispozitiv - semnal cu medie mobilă, volatilitate, distribuție, intervale între reclame, perioade de tăcere, recuperare, verdictul Fault Detector, detalii dispozitiv + buton de căutare online (doar în browser)
 - [ ] Notificări configurabile
 - [ ] Teste cu date simulate (marcate clar ca simulate)
 - [ ] 🔧 Validare pe flota reală

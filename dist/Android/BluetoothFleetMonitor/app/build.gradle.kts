@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -15,15 +17,31 @@ android {
         applicationId = "com.unupunct.fleetmonitor"
         minSdk = 29          // Android 10
         targetSdk = 35
-        versionCode = 5
-        versionName = "0.3.2"
+        versionCode = 6
+        versionName = "0.4.0"
+    }
+
+    // Release signing key: ../Signing/keystore.properties (git-ignored, never committed). Without it the release build falls back to the
+    // debug key so the project still builds on a fresh checkout, but that APK is NOT the one to hand out.
+    val signingProps = Properties().apply {
+        val f = rootProject.file("../Signing/keystore.properties")
+        if (f.exists()) f.inputStream().use { load(it) }
+    }
+    val hasReleaseKey = signingProps.getProperty("storeFile") != null
+    signingConfigs {
+        if (hasReleaseKey) create("release") {
+            storeFile = rootProject.file("../" + signingProps.getProperty("storeFile"))
+            storePassword = signingProps.getProperty("storePassword")
+            keyAlias = signingProps.getProperty("keyAlias")
+            keyPassword = signingProps.getProperty("keyPassword")
+        }
     }
 
     buildTypes {
         release {
-            isMinifyEnabled = false
-            // Phase 6 adds a real upload key. Until then release builds are signed with the debug key and are for local install only.
-            signingConfig = signingConfigs.getByName("debug")
+            isMinifyEnabled = false            // R8 off on purpose: Hilt/Room/Compose reflection needs a proven rule set before turning it on
+            isDebuggable = false
+            signingConfig = if (hasReleaseKey) signingConfigs.getByName("release") else signingConfigs.getByName("debug")
         }
     }
 

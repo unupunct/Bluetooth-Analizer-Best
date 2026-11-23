@@ -33,3 +33,6 @@ graphify-out/
 hs_err_pid*.log
 replay_pid*.log
 dist/Tools/
+
+# Android release signing key and its password: never commit
+dist/Android/Signing/

@@ -589,7 +589,7 @@ fun SettingsScreen(vm: FleetViewModel) {
             Text("Replaces the real devices on the radar and in the lists with made-up ones, so the app can be photographed without showing real surroundings. A DEMO DATA banner stays on every screen while it is on. Nothing is stored or uploaded.", color = FleetColors.Muted, fontSize = 12.sp)
         }
         Card2 {
-            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.3.2")
+            Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.4.0")
             Text("Local only: no ads, no analytics, no cloud. The only network use is uploading to the Windows PC you paired, over HTTPS on your own network.", color = FleetColors.Muted, fontSize = 12.sp)
         }
     }
