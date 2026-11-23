@@ -1,3 +1,4 @@
+using Diag = BluetoothFleetMonitor.Application.Diagnostics;
 using System.Diagnostics;
 using System.IO;
 using System.Text;
@@ -355,6 +356,38 @@ public static class Headless
             faults.LoadAnalysis(BluetoothFleetMonitor.Application.Diagnostics.FaultAnalyzer.Analyze(ev, cover, wnd, faults.Settings), "Last 7 days");
         }
 
+        // Signal Analysis demo: a fictional device and 24 hours of fictional readings, run through the real analyzer.
+        {
+            var dStart = now.AddHours(-24); var dWin = new Diag.TimeRange(dStart, now); var rr = new Random(9);
+            var silenceList = new[]
+            {
+                new Diag.TimeRange(now.AddHours(-21), now.AddHours(-21).AddMinutes(9)), new Diag.TimeRange(now.AddHours(-9), now.AddHours(-9).AddMinutes(18)),
+                new Diag.TimeRange(now.AddHours(-6), now.AddHours(-6).AddMinutes(12)), new Diag.TimeRange(now.AddHours(-1.5), now.AddHours(-1.5).AddMinutes(25)),
+            };
+            var dBuckets = new List<Diag.SignalBucket>();
+            for (var i = 0; i < 1440; i++)
+            {
+                var t = dStart.AddMinutes(i);
+                if (silenceList.Any(sr => t >= sr.StartUtc && t < sr.EndUtc)) continue;
+                var level = -66 + Math.Sin(i / 90.0) * 3 + (rr.NextDouble() - 0.5) * 4;
+                if (t >= now.AddHours(-15) && t < now.AddHours(-15).AddMinutes(25)) level -= 14;                       // a drop that recovers
+                if (t >= now.AddHours(-3)) level -= 9 * Math.Min(1, (t - now.AddHours(-3)).TotalMinutes / 60);          // fading lately
+                dBuckets.Add(new Diag.SignalBucket(t, level, (int)level - 4, (int)level + 4, 30));
+            }
+            var gaps = new Dictionary<int, int> { [1] = 12000, [2] = 9000, [3] = 1500, [5] = 300, [10] = 40, [30] = 12, [120] = 3, [600] = 2 };
+            var dInput = new Diag.SignalInput(dWin, 60, dBuckets, gaps, 1500, silenceList);
+            var dAnalysis = Diag.SignalAnalyzer.Analyze(dInput);
+            var dProfile = Diag.DeviceProfileBuilder.Build(new Diag.DeviceProfileInput("Studio Light 04", "Studio Light 04", "LED controller", "Studio 02", "WS-03", "0059:0102030405",
+                "0000180f-0000-1000-8000-00805f9b34fb", AddressKind.Public, true, true, now.AddDays(-30), now.AddMinutes(-2), 184_220,
+                new Dictionary<string, long> { ["Windows"] = 151_000, ["Android"] = 33_220 }));
+            var dEvidence = new Diag.DeviceEvidence { DeviceId = Guid.NewGuid(), Name = "Studio Light 04", Category = "LED controller", Room = "Studio 02", Observations = 184_220, FirstSeenUtc = now.AddDays(-30),
+                Silences = silenceList, Buckets = dBuckets.Select(b => new Diag.RssiBucket(b.StartUtc, b.Average, b.Count)).ToList() };
+            var dDiag = Diag.FaultAnalyzer.Analyze(new[] { dEvidence }, new[] { dWin }, dWin, new Diag.AnalyzerSettings()).Devices[0];
+            sp.GetRequiredService<SignalAnalysisViewModel>().LoadDemo(dInput, dAnalysis, dProfile, dDiag, new[]
+            {
+                new ScannerChoice(null, "All scanners", 184_220), new ScannerChoice(Guid.NewGuid(), "PC radio (Windows)", 151_000), new ScannerChoice(Guid.NewGuid(), "Demo phone A", 33_220),
+            });
+        }
         sp.GetRequiredService<MobileDevicesViewModel>().LoadDemo();
 
         var window = sp.GetRequiredService<MainWindow>();
@@ -363,7 +396,7 @@ public static class Headless
         var main = sp.GetRequiredService<MainViewModel>();
         main.StatusBar = "DEMO DATA: fictional devices and values for documentation. Not real measurements.";
         var selection = sp.GetRequiredService<SelectionService>();
-        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640), ("faults", "windows-fault-detector.png", 900), ("mobile", "windows-mobile-devices.png", 1060) };
+        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640), ("faults", "windows-fault-detector.png", 900), ("mobile", "windows-mobile-devices.png", 1060), ("analysis", "windows-signal-analysis.png", 1100) };
         var report = new StringBuilder("Demo screenshots (fictional data)\n");
         var failures = 0;
         foreach (var (key, file, height) in pages)

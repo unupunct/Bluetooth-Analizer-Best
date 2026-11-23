@@ -155,7 +155,7 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
         {
             StatLines.Add(new("Time between advertisements", $"median {Fmt(iv.MedianSeconds)}, 95% under {Fmt(iv.P95Seconds)}, longest {Fmt(iv.MaxSeconds)}"));
             IntervalSeries = new ISeries[] { new ColumnSeries<int> { Name = "Gaps", Values = iv.Bins.Select(b => b.Count).ToArray(), Fill = new SolidColorPaint(Blue), Stroke = null } };
-            IntervalXAxes = new ICartesianAxis[] { new Axis { Labels = iv.Bins.Select(b => b.Label + " s").ToList(), LabelsPaint = new SolidColorPaint(Muted), TextSize = 11 } };
+            IntervalXAxes = new ICartesianAxis[] { new Axis { Labels = iv.Bins.Select(b => b.Label + " s").ToList(), LabelsPaint = new SolidColorPaint(Muted), TextSize = 11, MinStep = 1 } };
             IntervalNote = scannerId is null && scanners.Count > 2 ? "Several scanners heard this device, so these gaps mix sources. Pick one scanner above for exact intervals." : "";
         }
         if (!a.Sufficient) return;
@@ -191,7 +191,7 @@ public sealed partial class SignalAnalysisViewModel : ObservableObject
         SignalSections = a.Silences.Select(s => new RectangularSection { Xi = s.Range.StartUtc.ToLocalTime().Ticks, Xj = s.Range.EndUtc.ToLocalTime().Ticks, Fill = new SolidColorPaint(Red.WithAlpha(45)) }).ToArray();
 
         DistributionSeries = new ISeries[] { new ColumnSeries<int> { Name = "Buckets", Values = a.Distribution.Select(b => b.Count).ToArray(), Fill = new SolidColorPaint(Green), Stroke = null } };
-        DistributionXAxes = new ICartesianAxis[] { new Axis { Labels = a.Distribution.Select(b => $"{b.FromDbm}").ToList(), LabelsPaint = new SolidColorPaint(Muted), TextSize = 11, Name = "dBm (5 dB steps)", NamePaint = new SolidColorPaint(Muted) } };
+        DistributionXAxes = new ICartesianAxis[] { new Axis { Labels = a.Distribution.Select(b => $"{b.FromDbm}").ToList(), LabelsPaint = new SolidColorPaint(Muted), TextSize = 11, MinStep = 1, Name = "dBm (5 dB steps)", NamePaint = new SolidColorPaint(Muted) } };
 
         foreach (var s in a.Silences)
             Silences.Add(new SilenceRow
