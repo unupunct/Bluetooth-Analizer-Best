@@ -4,7 +4,13 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -22,6 +28,8 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.collectAsState
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.ui.Modifier
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.navigation.NavGraph.Companion.findStartDestination
@@ -70,7 +78,12 @@ private fun AppRoot() {
             }
         },
     ) { pad ->
-        Box(Modifier.fillMaxSize().padding(pad).statusBarsPadding()) {
+        val settings by vm.settings.collectAsState()
+        Column(Modifier.fillMaxSize().padding(pad).statusBarsPadding()) {
+          if (settings.demoMode) Box(Modifier.fillMaxWidth().background(FleetColors.WarnBg).padding(vertical = 5.dp), contentAlignment = Alignment.Center) {
+              Text("DEMO DATA: fictional devices, not real measurements", color = FleetColors.Warn, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+          }
+          Box(Modifier.weight(1f).fillMaxWidth()) {
             NavHost(nav, startDestination = "scanner") {
                 composable("scanner") {
                     ScannerScreen(vm) { nav.navigate("radar") { popUpTo(nav.graph.findStartDestination().id) { saveState = true }; launchSingleTop = true; restoreState = true } }
@@ -91,6 +104,7 @@ private fun AppRoot() {
                 composable("sync") { SyncScreen(vm) }
                 composable("settings") { SettingsScreen(vm) }
             }
+          }
         }
     }
 }

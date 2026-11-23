@@ -6,53 +6,189 @@
     <!-- ============ Dashboard ============ -->
     <DataTemplate DataType="{x:Type vm:DashboardViewModel}">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
-            <StackPanel Margin="20">
-                <TextBlock Style="{StaticResource H1}" Text="Dashboard"/>
+            <StackPanel Margin="22,18,22,22">
+                <!-- header: title, live status, controls -->
+                <Grid Margin="0,0,0,14">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                    <StackPanel>
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource H1}" Margin="0,0,0,2" Text="Dashboard"/>
+                            <Border CornerRadius="10" Background="{StaticResource WarnBg}" BorderBrush="{StaticResource Warn}" BorderThickness="1" Padding="9,2" Margin="14,4,0,0" VerticalAlignment="Center">
+                                <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding IsDemo}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
+                                <TextBlock Text="DEMO DATA - not real measurements" Foreground="{StaticResource Warn}" FontSize="11" FontWeight="SemiBold"/>
+                            </Border>
+                        </StackPanel>
+                        <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
+                            <Ellipse Width="11" Height="11" VerticalAlignment="Center" Margin="0,0,8,0">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Fill" Value="{StaticResource Muted}"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding ScannerWarning}" Value="True"><Setter Property="Fill" Value="{StaticResource Warn}"/></DataTrigger>
+                                            <DataTrigger Binding="{Binding ScannerHealthy}" Value="True">
+                                                <Setter Property="Fill" Value="{StaticResource Good}"/>
+                                                <DataTrigger.EnterActions>
+                                                    <BeginStoryboard x:Name="pulse"><Storyboard RepeatBehavior="Forever">
+                                                        <DoubleAnimation Storyboard.TargetProperty="Opacity" From="1" To="0.25" Duration="0:0:0.9" AutoReverse="True"/>
+                                                    </Storyboard></BeginStoryboard>
+                                                </DataTrigger.EnterActions>
+                                                <DataTrigger.ExitActions><RemoveStoryboard BeginStoryboardName="pulse"/></DataTrigger.ExitActions>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                            <TextBlock Text="{Binding ScannerStateText}" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Style="{StaticResource MutedText}" Margin="12,0,0,0" VerticalAlignment="Center" Text="{Binding Adapter}"/>
+                            <TextBlock Style="{StaticResource MutedText}" Margin="12,0,0,0" VerticalAlignment="Center" Text="{Binding ModeText}"/>
+                        </StackPanel>
+                    </StackPanel>
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Content="Start scanning" Command="{Binding StartScanCommand}" IsEnabled="{Binding CanStart}"/>
+                        <Button Content="Stop scanning" Command="{Binding StopScanCommand}" IsEnabled="{Binding CanStop}" Margin="0"/>
+                    </StackPanel>
+                </Grid>
 
-                <Border Background="{StaticResource WarnBg}" BorderBrush="{StaticResource Warn}" BorderThickness="1" CornerRadius="6" Padding="12" Margin="0,0,0,12">
-                    <Border.Style>
-                        <Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/>
-                            <Style.Triggers><DataTrigger Binding="{Binding ScannerWarning}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers>
-                        </Style>
-                    </Border.Style>
+                <Border Background="{StaticResource WarnBg}" BorderBrush="{StaticResource Warn}" BorderThickness="1" CornerRadius="10" Padding="12" Margin="0,0,0,12">
+                    <Border.Style><Style TargetType="Border"><Setter Property="Visibility" Value="Collapsed"/><Style.Triggers><DataTrigger Binding="{Binding ScannerWarning}" Value="True"><Setter Property="Visibility" Value="Visible"/></DataTrigger></Style.Triggers></Style></Border.Style>
                     <StackPanel>
                         <TextBlock FontWeight="SemiBold" Foreground="{StaticResource Warn}" Text="Scanner needs attention"/>
                         <TextBlock Text="{Binding ScannerMessage}" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     </StackPanel>
                 </Border>
 
-                <WrapPanel>
-                    <Border Style="{StaticResource Tile}"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Registered devices"/><TextBlock Style="{StaticResource BigNumber}" Text="{Binding Registered}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Detected now"/><TextBlock Style="{StaticResource BigNumber}" Foreground="{StaticResource Good}" Text="{Binding Detected}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}" ToolTip="Not heard recently while the scanner was able to hear. This is not proof of a disconnection."><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Missing from recent scans"/><TextBlock Style="{StaticResource BigNumber}" Foreground="{StaticResource Warn}" Text="{Binding Missing}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}" ToolTip="The scanner was stopped, deaf or interrupted, so absence cannot be judged."><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Uncertain"/><TextBlock Style="{StaticResource BigNumber}" Foreground="{StaticResource Muted}" Text="{Binding Uncertain}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Windows scanner"/><TextBlock FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" Text="{Binding ScannerStateText}"/><TextBlock Style="{StaticResource MutedText}" Text="{Binding Rate}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Adapter"/><TextBlock FontSize="13" TextWrapping="Wrap" Text="{Binding Adapter}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Last database update"/><TextBlock FontSize="18" FontWeight="SemiBold" Text="{Binding LastUpdate}"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}" Opacity="0.6"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Unstable / needs investigation"/><TextBlock FontSize="14" Text="Arrives in Phase 4"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}" Opacity="0.6"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Mobile scanners / last sync"/><TextBlock FontSize="14" Text="Arrives in Phase 3"/></StackPanel></Border>
-                    <Border Style="{StaticResource Tile}" Opacity="0.6"><StackPanel><TextBlock Style="{StaticResource MutedText}" Text="Active inspection sessions"/><TextBlock FontSize="14" Text="Arrives in Phase 3"/></StackPanel></Border>
-                </WrapPanel>
+                <!-- KPI strip -->
+                <UniformGrid Columns="6" Margin="0,0,0,12">
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0"><Grid>
+                        <Border Width="4" HorizontalAlignment="Left" Background="{StaticResource Accent}" CornerRadius="2" Margin="-16,-12,0,-12"/>
+                        <StackPanel Margin="4,0,0,0"><TextBlock Style="{StaticResource MutedText}" Text="Registered"/><TextBlock Style="{StaticResource BigNumber}" Text="{Binding Registered}"/><TextBlock Style="{StaticResource MutedText}" FontSize="11" Text="devices known"/></StackPanel>
+                    </Grid></Border>
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0"><Grid>
+                        <Border Width="4" HorizontalAlignment="Left" Background="{StaticResource Good}" CornerRadius="2" Margin="-16,-12,0,-12"/>
+                        <StackPanel Margin="4,0,0,0"><TextBlock Style="{StaticResource MutedText}" Text="Detected now"/><TextBlock Style="{StaticResource BigNumber}" Foreground="{StaticResource Good}" Text="{Binding Detected}"/><TextBlock Style="{StaticResource MutedText}" FontSize="11" Text="heard recently"/></StackPanel>
+                    </Grid></Border>
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0" ToolTip="Not heard recently while the scanner was able to hear. This is not proof of a disconnection."><Grid>
+                        <Border Width="4" HorizontalAlignment="Left" Background="{StaticResource Warn}" CornerRadius="2" Margin="-16,-12,0,-12"/>
+                        <StackPanel Margin="4,0,0,0"><TextBlock Style="{StaticResource MutedText}" Text="Not heard recently"/><TextBlock Style="{StaticResource BigNumber}" Foreground="{StaticResource Warn}" Text="{Binding Missing}"/><TextBlock Style="{StaticResource MutedText}" FontSize="11" Text="scanner could hear"/></StackPanel>
+                    </Grid></Border>
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0" ToolTip="The scanner was stopped, deaf or interrupted, so absence cannot be judged."><Grid>
+                        <Border Width="4" HorizontalAlignment="Left" Background="{StaticResource Muted}" CornerRadius="2" Margin="-16,-12,0,-12"/>
+                        <StackPanel Margin="4,0,0,0"><TextBlock Style="{StaticResource MutedText}" Text="Uncertain"/><TextBlock Style="{StaticResource BigNumber}" Foreground="{StaticResource Muted}" Text="{Binding Uncertain}"/><TextBlock Style="{StaticResource MutedText}" FontSize="11" Text="cannot be judged"/></StackPanel>
+                    </Grid></Border>
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0"><Grid>
+                        <Border Width="4" HorizontalAlignment="Left" Background="{StaticResource Good}" CornerRadius="2" Margin="-16,-12,0,-12"/>
+                        <StackPanel Margin="4,0,0,0">
+                            <TextBlock Style="{StaticResource MutedText}" Text="Advertisements / s"/>
+                            <TextBlock Style="{StaticResource BigNumber}" Text="{Binding Rate}"/>
+                            <lvc:CartesianChart Background="{StaticResource Panel}" Series="{Binding SparkSeries}" XAxes="{Binding SparkXAxes}" YAxes="{Binding SparkYAxes}" Height="30" TooltipPosition="Hidden"/>
+                        </StackPanel>
+                    </Grid></Border>
+                    <Border Style="{StaticResource Card}"><Grid>
+                        <Border Width="4" HorizontalAlignment="Left" Background="{StaticResource Accent}" CornerRadius="2" Margin="-16,-12,0,-12"/>
+                        <StackPanel Margin="4,0,0,0"><TextBlock Style="{StaticResource MutedText}" Text="Last database update"/><TextBlock FontSize="22" FontWeight="SemiBold" Text="{Binding LastUpdate}"/><TextBlock Style="{StaticResource MutedText}" FontSize="11" TextTrimming="CharacterEllipsis" Text="{Binding PipelineText}"/></StackPanel>
+                    </Grid></Border>
+                </UniformGrid>
 
-                <StackPanel Orientation="Horizontal" Margin="0,4,0,0">
-                    <Button Content="Start scanning" Command="{Binding StartScanCommand}" IsEnabled="{Binding CanStart}"/>
-                    <Button Content="Stop scanning" Command="{Binding StopScanCommand}" IsEnabled="{Binding CanStop}"/>
-                </StackPanel>
+                <!-- activity + signal strength -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="2*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Margin="0,0,0,2" Text="ACTIVITY  (last 10 minutes, live)"/>
+                            <lvc:CartesianChart Background="{StaticResource Panel}" Series="{Binding ActivitySeries}" XAxes="{Binding ActivityXAxes}" YAxes="{Binding ActivityYAxes}" Height="235" LegendPosition="Bottom" LegendTextPaint="{Binding LegendPaint}" TooltipTextPaint="{Binding LegendPaint}"/>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Margin="0,0,0,8" Text="SIGNAL STRENGTH  (devices heard now)"/>
+                            <ItemsControl ItemsSource="{Binding Histogram}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,6">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="78"/><ColumnDefinition Width="*"/><ColumnDefinition Width="34"/></Grid.ColumnDefinitions>
+                                            <TextBlock Style="{StaticResource MutedText}" VerticalAlignment="Center" Text="{Binding Label}"/>
+                                            <ProgressBar Grid.Column="1" Style="{StaticResource FlatBar}" Height="14" Value="{Binding Percent}" Foreground="{Binding Fill}" Margin="6,0"/>
+                                            <TextBlock Grid.Column="2" HorizontalAlignment="Right" FontWeight="SemiBold" Text="{Binding Count}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBlock Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Margin="0,10,0,0" Text="RSSI is a relative signal level, not a distance."/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
 
-                <TextBlock Style="{StaticResource H2}" Text="LIVE EVENT FEED (scanner and application events)"/>
-                <DataGrid ItemsSource="{Binding Events}" MaxHeight="360" HorizontalScrollBarVisibility="Disabled">
-                    <DataGrid.Columns>
-                        <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="80"/>
-                        <DataGridTemplateColumn Header="Severity" Width="80"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Style="{StaticResource StatusText}" Text="{Binding Severity}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
-                        <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110"/>
-                        <DataGridTextColumn Header="Event" Binding="{Binding Type}" Width="170"/>
-                        <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
-                    </DataGrid.Columns>
-                </DataGrid>
+                <!-- makers, strongest, health -->
+                <Grid Margin="0,0,0,12">
+                    <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                    <Border Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Margin="0,0,0,4" Text="BY MAKER"/>
+                            <Grid>
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="150"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                                <lvc:PieChart Background="{StaticResource Panel}" Series="{Binding MakerSeries}" Height="150" LegendPosition="Hidden" InitialRotation="-90"/>
+                                <ItemsControl Grid.Column="1" ItemsSource="{Binding MakerLegend}" VerticalAlignment="Center" Margin="8,0,0,0">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <DockPanel Margin="0,3">
+                                                <Ellipse DockPanel.Dock="Left" Width="9" Height="9" Fill="{Binding Fill}" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock DockPanel.Dock="Right" FontWeight="SemiBold" Text="{Binding Count}" Margin="8,0,0,0"/>
+                                                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Name}"/>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="1" Style="{StaticResource Card}" Margin="0,0,10,0">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="STRONGEST RIGHT NOW"/>
+                            <ItemsControl ItemsSource="{Binding TopDevices}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Grid Margin="0,4">
+                                            <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="62"/></Grid.ColumnDefinitions>
+                                            <StackPanel>
+                                                <TextBlock TextTrimming="CharacterEllipsis" Text="{Binding Name}"/>
+                                                <ProgressBar Style="{StaticResource FlatBar}" Height="5" Value="{Binding Percent}" Foreground="{Binding Fill}" Margin="0,3,10,0"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" HorizontalAlignment="Right" VerticalAlignment="Center" FontWeight="SemiBold" Text="{Binding RssiText}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
+                    <Border Grid.Column="2" Style="{StaticResource Card}">
+                        <StackPanel>
+                            <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="SCANNER HEALTH"/>
+                            <TextBlock Style="{StaticResource MutedText}" Text="State"/><TextBlock FontSize="16" FontWeight="SemiBold" Text="{Binding ScannerStateText}" Margin="0,0,0,8"/>
+                            <TextBlock Style="{StaticResource MutedText}" Text="Adapter"/><TextBlock TextWrapping="Wrap" Text="{Binding Adapter}" Margin="0,0,0,8"/>
+                            <TextBlock Style="{StaticResource MutedText}" Text="Pipeline"/><TextBlock TextWrapping="Wrap" FontSize="12" Text="{Binding PipelineText}" Margin="0,0,0,8"/>
+                            <TextBlock Style="{StaticResource MutedText}" FontSize="11" TextWrapping="Wrap" Text="Nothing is dropped silently: any overflow or write failure is recorded in the Event Log."/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- events -->
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <TextBlock Style="{StaticResource H2}" Margin="0,0,0,6" Text="LIVE EVENTS  (scanner and application)"/>
+                        <DataGrid ItemsSource="{Binding Events}" MaxHeight="260" HorizontalScrollBarVisibility="Disabled" Background="Transparent" RowBackground="Transparent" AlternatingRowBackground="Transparent" BorderThickness="0">
+                            <DataGrid.Columns>
+                                <DataGridTextColumn Header="Time" Binding="{Binding Time}" Width="80"/>
+                                <DataGridTemplateColumn Header="Severity" Width="80"><DataGridTemplateColumn.CellTemplate><DataTemplate><TextBlock Style="{StaticResource StatusText}" Text="{Binding Severity}"/></DataTemplate></DataGridTemplateColumn.CellTemplate></DataGridTemplateColumn>
+                                <DataGridTextColumn Header="Source" Binding="{Binding Source}" Width="110"/>
+                                <DataGridTextColumn Header="Event" Binding="{Binding Type}" Width="170"/>
+                                <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*"/>
+                            </DataGrid.Columns>
+                        </DataGrid>
+                    </StackPanel>
+                </Border>
             </StackPanel>
         </ScrollViewer>
     </DataTemplate>
-
     <!-- ============ Live Monitor ============ -->
     <DataTemplate DataType="{x:Type vm:LiveMonitorViewModel}">
         <Grid Margin="20">

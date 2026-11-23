@@ -64,3 +64,6 @@ dependencies {
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
 }
+
+// Unit tests are small; a modest heap keeps them runnable on machines with little free commit memory.
+tasks.withType<Test>().configureEach { maxHeapSize = "256m"; jvmArgs("-Xms32m") }

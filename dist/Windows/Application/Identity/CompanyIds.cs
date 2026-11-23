@@ -17,6 +17,8 @@ public static class CompanyIds
         [0x00E0] = "Google",
         [0x0171] = "Amazon",
         [0x01DA] = "Logitech",
+        [0x012D] = "Sony",
+        [0x009E] = "Bose",
     };
 
     public static string Describe(ushort companyId) =>

@@ -9,6 +9,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -149,12 +150,12 @@ fun RadarScreen(vm: FleetViewModel, onOpen: (String) -> Unit) {
         item(key = "radar") {
             Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text("Radar", fontSize = 22.sp, fontWeight = FontWeight.SemiBold)
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     listOf("Auto", "5 m", "10 m", "25 m", "50 m", "100 m").forEachIndexed { i, l -> FilterChip(rangeChoice == i, { rangeChoice = i }, label = { Text(l, fontSize = 12.sp) }) }
                 }
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     FilterChip(headingUp, { headingUp = !headingUp }, enabled = motion.hasHeading, label = { Text(if (headingUp) "Heading up" else "North up", fontSize = 12.sp) })
-                    Text("range ${Ranging.format(rangeM)}  |  ${blips.size} on radar" + (if (motion.hasHeading) "  |  facing ${motion.headingDeg.roundToInt()} deg ${Compass.label(motion.headingDeg)}" else ""), color = FleetColors.Muted, fontSize = 12.sp)
+                    Text("range ${Ranging.format(rangeM)}  |  ${blips.size} on radar" + (if (motion.hasHeading) "  |  ${motion.headingDeg.roundToInt()}° ${Compass.label(motion.headingDeg)}" else ""), color = FleetColors.Muted, fontSize = 12.sp, maxLines = 1, modifier = Modifier.weight(1f))
                 }
                 Box(Modifier.fillMaxWidth().aspectRatio(1f)) {
                     RadarCanvas(blips, selected, target, rangeM, headingDeg, onSelect = { vm.select(it) }, modifier = Modifier.fillMaxSize())

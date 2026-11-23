@@ -27,6 +27,8 @@ data class AppSettings(
     val pathLossTenths: Int = 25,
     /** Length of one step in centimetres, for dead-reckoning while locating a device. */
     val strideCm: Int = 70,
+    /** Shows fictional devices instead of real ones (for screenshots). Never written to the database. */
+    val demoMode: Boolean = false,
 )
 
 /** Plain SharedPreferences behind a StateFlow: tiny, synchronous, and survives process death. */
@@ -45,6 +47,7 @@ class SettingsStore @Inject constructor(@ApplicationContext context: Context) {
         lastLocation = prefs.getString("lastLocation", "Office") ?: "Office",
         pathLossTenths = prefs.getInt("pathLossTenths", 25),
         strideCm = prefs.getInt("strideCm", 70),
+        demoMode = prefs.getBoolean("demoMode", false),
     )
 
     fun update(block: (AppSettings) -> AppSettings) {
@@ -58,6 +61,7 @@ class SettingsStore @Inject constructor(@ApplicationContext context: Context) {
             .putString("lastLocation", s.lastLocation)
             .putInt("pathLossTenths", s.pathLossTenths.coerceIn(15, 50))
             .putInt("strideCm", s.strideCm.coerceIn(40, 120))
+            .putBoolean("demoMode", s.demoMode)
             .apply()
         _settings.value = read()
     }

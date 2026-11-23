@@ -202,4 +202,127 @@ public static class Headless
         try { Directory.Delete(tmp, true); } catch { /* temp cleanup is best effort */ }
         return failures == 0 ? 0 : 4;
     }
+
+    // ---------------------------------------------------------------- demo screenshots
+
+    private static readonly (string Prefix, int Count, ushort Company, string Category, string Room)[] DemoKinds =
+    {
+        ("Studio Light", 12, 0x0059, "LED controller", "Studio"), ("Keyboard", 8, 0x01DA, "Keyboard", "Desk"), ("Mouse", 8, 0x01DA, "Mouse", "Desk"),
+        ("Camera", 5, 0x012D, "Camera", "Studio"), ("Speaker", 6, 0x009E, "Speaker", "Lounge"), ("Phone", 8, 0x004C, "Phone", "Office"),
+        ("Tag", 7, 0x0075, "Tracker", "Storage"), ("Watch", 6, 0x0087, "Watch", "Office"), ("Desk Sensor", 6, 0x0006, "Sensor", "Server area"),
+    };
+
+    /// <summary>
+    /// Renders the main pages off-screen from FICTIONAL demo devices (never real scan data, so no neighbours' devices are published).
+    /// Every page carries a visible "DEMO DATA" label. This renders WPF visuals into bitmaps; it does not capture the desktop.
+    /// </summary>
+    public static async Task<int> DemoShotsAsync(string outDir)
+    {
+        Directory.CreateDirectory(outDir);
+        var tmp = Path.Combine(Path.GetTempPath(), "bfm-demo-" + Guid.NewGuid().ToString("N"));
+        var paths = new AppPaths(tmp);
+        await using var sp = App.BuildServices(paths, new ConfigurationBuilder().Build());
+        await App.PrepareDatabaseAsync(sp);
+
+        var store = sp.GetRequiredService<IFleetStore>();
+        var scannerId = sp.GetRequiredService<SettingsStore>().Current.ScannerId;
+        await store.EnsureScannerAsync(new Scanner { Id = scannerId, Name = "demo", Platform = "Windows", CreatedAt = DateTime.UtcNow });
+        var now = DateTime.UtcNow;
+        var rng = new Random(11);
+        var batch = new List<ProcessedObservation>();
+        ulong serial = 0xD0DE00000000UL;
+        var index = 0;
+        foreach (var (prefix, count, company, _, _) in DemoKinds)
+            for (var n = 1; n <= count; n++, index++)
+            {
+                var id = Guid.NewGuid();
+                var baseRssi = -42 - rng.Next(0, 50);
+                var staleMin = index % 11 == 5 ? 25 + rng.Next(0, 60) : 0;          // a handful have not been heard for a while
+                var gapFrom = index % 9 == 4 ? 40 : -1;                              // a few have a silent stretch in their history
+                var address = serial + (ulong)index;
+                var first = true;
+                for (var minute = 90; minute >= staleMin; minute--)
+                    for (var half = 0; half < 2; half++)
+                    {
+                        if (gapFrom > 0 && minute is < 40 and > 28) continue;
+                        var t = now.AddMinutes(-minute).AddSeconds(half * 30);
+                        var rssi = (short)Math.Clamp(baseRssi + Math.Sin((minute + index) / 9.0) * 4 + (rng.NextDouble() - 0.5) * 6, -100, -30);
+                        var ad = new BleAdvertisement(Guid.NewGuid(), t, address, AddressKind.Public, rssi, $"{prefix} {n:00}",
+                            new[] { new ManufacturerBlock(company, new byte[] { 1, 2, 3, 4 }) }, Array.Empty<Guid>(), Array.Empty<byte>());
+                        batch.Add(new ProcessedObservation(ad, id, first,
+                            first ? new[] { new IdentifierRecord(IdentifierTypes.StableAddress, ad.AddressText, 1.0) } : Array.Empty<IdentifierRecord>(), now));
+                        first = false;
+                    }
+            }
+        batch = batch.OrderBy(b => b.Ad.ObservedUtc).ToList();
+        for (var i = 0; i < batch.Count; i += 2000) await store.SaveBatchAsync(scannerId, batch.Skip(i).Take(2000).ToList());
+        foreach (var (type, sev, msg, minAgo) in new[]
+        {
+            ("Running", Severity.Info, "Listening", 95), ("ScanScope", Severity.Info, "Demo event: scan resumed after the adapter was re-plugged", 52),
+            ("QueueOverflow", Severity.Warning, "Demo event: 12 advertisements dropped during a burst (recorded, never silent)", 31),
+            ("DeviceMerged", Severity.Info, "Demo event: two entries merged by the user", 17),
+        })
+            await store.RecordEventAsync(new ApplicationEvent { Source = "demo", Severity = sev, EventType = type, Message = msg, TimestampUtc = now.AddMinutes(-minAgo) });
+
+        var registry = sp.GetRequiredService<LiveRegistry>();
+        var factory = sp.GetRequiredService<IDbContextFactory<FleetDbContext>>();
+        await registry.LoadAsync(factory);
+        var admin = sp.GetRequiredService<DeviceAdminService>();
+        foreach (var d in registry.Devices.ToList())
+        {
+            var kind = DemoKinds.First(k => d.Name.StartsWith(k.Prefix));
+            var number = int.Parse(d.Name.Split(' ').Last());
+            await admin.UpdateDetailsAsync(d.Id, new DeviceDetails(null, kind.Category, $"{kind.Room} {1 + number % 3:00}", $"WS-{1 + number % 6:00}", null));
+            await registry.RefreshDeviceAsync(factory, d.Id);
+        }
+        registry.RefreshStatuses(now, TimeSpan.FromSeconds(120), ScannerState.Running, Array.Empty<CoverageGap>());
+        await sp.GetRequiredService<EventFeed>().RefreshAsync();
+
+        // Resolve the dashboard first: its constructor records one (empty) live sample, which must come BEFORE the demo history.
+        var dashboard = sp.GetRequiredService<DashboardViewModel>();
+        sp.GetRequiredService<DashboardMetrics>().SeedDemo();
+        dashboard.EnterDemo();
+
+        var window = sp.GetRequiredService<MainWindow>();
+        window.Left = -20000; window.Top = 0; window.ShowInTaskbar = false; window.Width = 1400;
+        window.Show();
+        var main = sp.GetRequiredService<MainViewModel>();
+        main.StatusBar = "DEMO DATA: fictional devices and values for documentation. Not real measurements.";
+        var selection = sp.GetRequiredService<SelectionService>();
+        var pages = new (string Key, string File, double Height)[] { ("dashboard", "windows-dashboard.png", 1240), ("live", "windows-live-monitor.png", 820), ("inventory", "windows-inventory.png", 820), ("history", "windows-device-history.png", 820), ("events", "windows-event-log.png", 640) };
+        var report = new StringBuilder("Demo screenshots (fictional data)\n");
+        var failures = 0;
+        foreach (var (key, file, height) in pages)
+        {
+            window.Height = height;
+            if (key == "history") selection.OpenHistory(registry.Devices.First(x => x.Name == "Studio Light 01").Id);
+            else if (key == "inventory") { sp.GetRequiredService<InventoryViewModel>().Selected = registry.Devices.First(x => x.Name == "Keyboard 02"); main.Navigate(key); }
+            else main.Navigate(key);
+            await Dispatcher.Yield(DispatcherPriority.ApplicationIdle);
+            await Task.Delay(key is "history" or "dashboard" ? 2600 : 400);
+            dashboard.EnterDemo();     // keep the demo texts after any timer refresh
+            // Render the content at an exact size, independent of the screen, onto the app background.
+            var root = (FrameworkElement)window.Content;
+            const int w = 1400; var h = (int)height;
+            root.Measure(new Size(w, h)); root.Arrange(new Rect(0, 0, w, h)); root.UpdateLayout();
+            await Task.Delay(300);
+            var rtb = new RenderTargetBitmap(w, h, 96, 96, PixelFormats.Pbgra32);
+            var dv = new DrawingVisual();
+            using (var dc = dv.RenderOpen())
+            {
+                dc.DrawRectangle((Brush)System.Windows.Application.Current.Resources["Bg"], null, new Rect(0, 0, w, h));
+                dc.DrawRectangle(new VisualBrush(root), null, new Rect(0, 0, w, h));
+            }
+            rtb.Render(dv);
+            var png = new PngBitmapEncoder(); png.Frames.Add(BitmapFrame.Create(rtb));
+            await using (var fs = File.Create(Path.Combine(outDir, file))) png.Save(fs);
+            report.AppendLine($"{file}  {w}x{h}");
+        }
+        report.AppendLine($"devices: {registry.Registered} detected {registry.Detected} not heard {registry.Missing}");
+        await File.WriteAllTextAsync(Path.Combine(outDir, "report.txt"), report.ToString());
+        window.Close();
+        Microsoft.Data.Sqlite.SqliteConnection.ClearAllPools();
+        try { Directory.Delete(tmp, true); } catch { /* best effort */ }
+        return failures;
+    }
 }

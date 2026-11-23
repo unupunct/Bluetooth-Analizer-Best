@@ -86,7 +86,7 @@ class FleetViewModel @Inject constructor(
 
     private val ticker = flow { while (true) { emit(System.currentTimeMillis()); delay(1000) } }
 
-    val rows: StateFlow<List<DeviceRow>> = combine(repo.devices, engine.live, settingsStore.settings, engine.status, ticker) { db, live, s, st, now ->
+    private val liveRows: StateFlow<List<DeviceRow>> = combine(repo.devices, engine.live, settingsStore.settings, engine.status, ticker) { db, live, s, st, now ->
         val liveBy = live.associateBy { it.address }
         val persistedGaps = gaps.value.map { CoverageGap(it.startMs, it.endMs, it.reason) }
         val allGaps = (persistedGaps + engine.coverageGaps()).distinct()
@@ -121,6 +121,11 @@ class FleetViewModel @Inject constructor(
 
         val dbAddresses = db.map { it.address }.toSet()
         db.map { build(it.address, it, liveBy[it.address]) } + live.filter { it.address !in dbAddresses }.map { build(it.address, null, it) }
+    }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
+
+    /** Real rows, or fictional ones while Demo data is on in Settings (for screenshots). */
+    val rows: StateFlow<List<DeviceRow>> = combine(liveRows, settingsStore.settings, ticker) { real, s, now ->
+        if (s.demoMode) DemoData.rows(now, s.pathLossTenths / 10.0) else real
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5000), emptyList())
 
     private fun presenceOk(last: Long, now: Long, window: Long) = now - last <= window

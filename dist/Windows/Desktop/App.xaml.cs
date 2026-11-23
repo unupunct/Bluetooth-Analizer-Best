@@ -48,7 +48,7 @@ public partial class App : System.Windows.Application
         DispatcherUnhandledException += (_, ex) =>
         {
             Log.Fatal(ex.Exception, "Unhandled UI exception");
-            if (args.Contains("--scan-test") || args.Contains("--verify-ui")) { ex.Handled = true; Shutdown(5); return; } // never block an unattended run on a dialog
+            if (args.Contains("--scan-test") || args.Contains("--verify-ui") || args.Contains("--demo-shots")) { ex.Handled = true; Shutdown(5); return; } // never block an unattended run on a dialog
             MessageBox.Show("Unexpected error: " + ex.Exception.Message + "\n\nDetails are in the log folder:\n" + paths.LogsDir,
                 "Bluetooth Fleet Monitor", MessageBoxButton.OK, MessageBoxImage.Error);
             ex.Handled = true;
@@ -62,6 +62,13 @@ public partial class App : System.Windows.Application
             {
                 var seconds = int.TryParse(ArgValue(args, "--seconds"), out var s) ? s : 20;
                 var code = await Headless.ScanTestAsync(paths, seconds, ArgValue(args, "--out") ?? Path.Combine(paths.DataDir, "scan-test-report.txt"));
+                Shutdown(code);
+                return;
+            }
+
+            if (args.Contains("--demo-shots"))
+            {
+                var code = await Headless.DemoShotsAsync(ArgValue(args, "--out") ?? Path.Combine(paths.DataDir, "demo-shots"));
                 Shutdown(code);
                 return;
             }
@@ -114,6 +121,7 @@ public partial class App : System.Windows.Application
         sc.AddSingleton(_ => Current.Dispatcher);
         sc.AddSingleton<EventFeed>();
         sc.AddSingleton<SelectionService>();
+        sc.AddSingleton<DashboardMetrics>();
         sc.AddSingleton<ScanController>();
         sc.AddSingleton<DashboardViewModel>();
         sc.AddSingleton<LiveMonitorViewModel>();

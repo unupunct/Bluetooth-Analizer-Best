@@ -501,6 +501,14 @@ fun SettingsScreen(vm: FleetViewModel) {
             OutlinedButton(onClick = { requestBattery(ctx) }) { Text("Allow background use") }
         }
         Card2 {
+            Label("Demo data")
+            Row(Modifier.fillMaxWidth().clickable { vm.updateSettings { it.copy(demoMode = !it.demoMode) } }, verticalAlignment = Alignment.CenterVertically) {
+                Switch(s.demoMode, { v -> vm.updateSettings { it.copy(demoMode = v) } })
+                Text("  Show fictional devices (for screenshots)", fontSize = 14.sp)
+            }
+            Text("Replaces the real devices on the radar and in the lists with made-up ones, so the app can be photographed without showing real surroundings. A DEMO DATA banner stays on every screen while it is on. Nothing is stored or uploaded.", color = FleetColors.Muted, fontSize = 12.sp)
+        }
+        Card2 {
             Label("About"); Text("Bluetooth Fleet Monitor (mobile) 0.2.0")
             Text("Local only: no ads, no analytics, no cloud. Needs no internet access in this version.", color = FleetColors.Muted, fontSize = 12.sp)
         }
